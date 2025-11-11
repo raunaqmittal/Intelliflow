@@ -1,0 +1,15 @@
+role_id,role_name,department_id
+1,Account Manager,1
+2,Product Owner,2
+3,UX Designer,3
+4,UX Researcher,3
+5,UI Designer,4
+6,Frontend Engineer,5
+7,Backend Engineer,5
+8,Hardware Engineer,5
+9,QA Tester,6
+10,QA Engineer (Hardware),6
+11,Scrum Master,7
+12,DevOps Engineer,8
+13,Industrial Designer,9
+14,Mechanical Engineer,9

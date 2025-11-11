@@ -1,0 +1,11 @@
+skill_id,skill_name,mapped_roles
+1,Communication,Account Manager
+2,Agile Mgmt,Product Owner;Scrum Master
+3,Figma/Wireframing,UX Designer;UI Designer
+4,Research Methods,UX Researcher
+5,React/Flutter,Frontend Engineer
+6,API/DB,Backend Engineer
+7,IoT/PCB Design,Hardware Engineer
+8,Testing Tools,QA Tester;QA Engineer (Hardware)
+9,CI/CD,DevOps Engineer
+10,CAD/3D Printing,Industrial Designer;Mechanical Engineer

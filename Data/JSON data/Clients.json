@@ -1,0 +1,17 @@
+[
+  {
+    "client_id": 1,
+    "client_name": "DesignX Ltd",
+    "contact_email": "contact@designx.com"
+  },
+  {
+    "client_id": 2,
+    "client_name": "GreenTech Pvt",
+    "contact_email": "main@greentech.dev"
+  },
+  {
+    "client_id": 3,
+    "client_name": "AutoFab Industries",
+    "contact_email": "projects@autofab.co"
+  }
+]

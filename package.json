@@ -1,0 +1,12 @@
+{
+  "name": "intelliflow-root",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm --prefix \\\"Back End\\\" run dev\" \"npm --prefix \\\"Front End\\\" run dev\"",
+    "dev:nodemon": "concurrently -n backend,frontend -c blue,green \"npm --prefix \\\"Back End\\\" run dev\" \"npm --prefix \\\"Front End\\\" run dev:nodemon\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

@@ -1,0 +1,162 @@
+[
+  {
+    "task_id": 1,
+    "task_name": "Gather requirements from client",
+    "sprint": "Sprint 0 ΓÇô Discovery",
+    "sprint_number": 1,
+    "project_id": 1,
+    "assigned_to": 1,
+    "status": "Done",
+    "dependencies": [],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 2,
+    "task_name": "Create backlog & user stories",
+    "sprint": "Sprint 0 ΓÇô Discovery",
+    "sprint_number": 1,
+    "project_id": 1,
+    "assigned_to": 6,
+    "status": "Done",
+    "dependencies": [
+      1
+    ],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 3,
+    "task_name": "Draft wireframes",
+    "sprint": "Sprint 1 ΓÇô Wireframes",
+    "sprint_number": 2,
+    "project_id": 1,
+    "assigned_to": 8,
+    "status": "Done",
+    "dependencies": [
+      2
+    ],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 4,
+    "task_name": "Define style guide",
+    "sprint": "Sprint 1 ΓÇô Wireframes",
+    "sprint_number": 2,
+    "project_id": 1,
+    "assigned_to": 3,
+    "status": "Done",
+    "dependencies": [
+      3
+    ],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 5,
+    "task_name": "Build interactive prototype",
+    "sprint": "Sprint 2 ΓÇô Hi-Fi Prototype",
+    "sprint_number": 3,
+    "project_id": 1,
+    "assigned_to": 7,
+    "status": "In Progress",
+    "dependencies": [
+      4
+    ],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 6,
+    "task_name": "Usability testing",
+    "sprint": "Sprint 2 ΓÇô Hi-Fi Prototype",
+    "sprint_number": 3,
+    "project_id": 1,
+    "assigned_to": 9,
+    "status": "Pending",
+    "dependencies": [
+      5
+    ],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 7,
+    "task_name": "Feasibility study",
+    "sprint": "Phase 1 ΓÇô Requirements",
+    "sprint_number": 4,
+    "project_id": 2,
+    "assigned_to": 6,
+    "status": "Done",
+    "dependencies": [],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 8,
+    "task_name": "CAD Design",
+    "sprint": "Phase 1 ΓÇô Requirements",
+    "sprint_number": 4,
+    "project_id": 2,
+    "assigned_to": 10,
+    "status": "Done",
+    "dependencies": [],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 9,
+    "task_name": "Hardware prototyping",
+    "sprint": "Phase 2 ΓÇô Prototype Build",
+    "sprint_number": 5,
+    "project_id": 2,
+    "assigned_to": 4,
+    "status": "In Progress",
+    "dependencies": [
+      7
+    ],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 10,
+    "task_name": "Circuit QA testing",
+    "sprint": "Phase 2 ΓÇô Prototype Build",
+    "sprint_number": 5,
+    "project_id": 2,
+    "assigned_to": 5,
+    "status": "Pending",
+    "dependencies": [
+      9
+    ],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 11,
+    "task_name": "CAD modelling for car part",
+    "sprint": "Stage 1 ΓÇô CAD Modelling",
+    "sprint_number": 6,
+    "project_id": 3,
+    "assigned_to": 10,
+    "status": "In Progress",
+    "dependencies": [],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  },
+  {
+    "task_id": 12,
+    "task_name": "Mechanical stress testing",
+    "sprint": "Stage 1 ΓÇô CAD Modelling",
+    "sprint_number": 6,
+    "project_id": 3,
+    "assigned_to": 2,
+    "status": "Pending",
+    "dependencies": [
+      11
+    ],
+    "priority": "medium",
+    "created_at": "2025-10-19T10:12:40.300Z"
+  }
+]

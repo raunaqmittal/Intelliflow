@@ -1,0 +1,26 @@
+[
+  {
+    "project_id": 1,
+    "client_name": "DesignX Ltd",
+    "project_title": "Dashboard UI Redesign",
+    "category": "UI/UX Design",
+    "framework": "Agile",
+    "status": "In Progress"
+  },
+  {
+    "project_id": 2,
+    "client_name": "GreenTech Pvt",
+    "project_title": "IoT Smart Home Prototype",
+    "category": "Hardware Prototype",
+    "framework": "Hybrid",
+    "status": "In Progress"
+  },
+  {
+    "project_id": 3,
+    "client_name": "AutoFab Industries",
+    "project_title": "3D Printed Car Part",
+    "category": "Mechanical Prototype",
+    "framework": "Waterfall",
+    "status": "In Progress"
+  }
+]

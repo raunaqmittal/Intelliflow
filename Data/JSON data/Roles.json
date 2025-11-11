@@ -1,0 +1,72 @@
+[
+  {
+    "role_id": 1,
+    "role_name": "Account Manager",
+    "department_id": 1
+  },
+  {
+    "role_id": 2,
+    "role_name": "Product Owner",
+    "department_id": 2
+  },
+  {
+    "role_id": 3,
+    "role_name": "UX Designer",
+    "department_id": 3
+  },
+  {
+    "role_id": 4,
+    "role_name": "UX Researcher",
+    "department_id": 3
+  },
+  {
+    "role_id": 5,
+    "role_name": "UI Designer",
+    "department_id": 4
+  },
+  {
+    "role_id": 6,
+    "role_name": "Frontend Engineer",
+    "department_id": 5
+  },
+  {
+    "role_id": 7,
+    "role_name": "Backend Engineer",
+    "department_id": 5
+  },
+  {
+    "role_id": 8,
+    "role_name": "Hardware Engineer",
+    "department_id": 5
+  },
+  {
+    "role_id": 9,
+    "role_name": "QA Tester",
+    "department_id": 6
+  },
+  {
+    "role_id": 10,
+    "role_name": "QA Engineer (Hardware)",
+    "department_id": 6
+  },
+  {
+    "role_id": 11,
+    "role_name": "Scrum Master",
+    "department_id": 7
+  },
+  {
+    "role_id": 12,
+    "role_name": "DevOps Engineer",
+    "department_id": 8
+  },
+  {
+    "role_id": 13,
+    "role_name": "Industrial Designer",
+    "department_id": 9
+  },
+  {
+    "role_id": 14,
+    "role_name": "Mechanical Engineer",
+    "department_id": 9
+  }
+]

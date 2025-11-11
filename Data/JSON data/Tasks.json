@@ -1,0 +1,110 @@
+[
+  {
+    "task_id": 1,
+    "sprint_id": 1,
+    "task_name": "Gather requirements from client",
+    "department_id": 1,
+    "role_id": 1,
+    "assigned_to": 1,
+    "status": "Done"
+  },
+  {
+    "task_id": 2,
+    "sprint_id": 1,
+    "task_name": "Create backlog & user stories",
+    "department_id": 2,
+    "role_id": 2,
+    "assigned_to": 6,
+    "status": "Done"
+  },
+  {
+    "task_id": 3,
+    "sprint_id": 2,
+    "task_name": "Draft wireframes",
+    "department_id": 3,
+    "role_id": 3,
+    "assigned_to": 8,
+    "status": "Done"
+  },
+  {
+    "task_id": 4,
+    "sprint_id": 2,
+    "task_name": "Define style guide",
+    "department_id": 4,
+    "role_id": 5,
+    "assigned_to": 3,
+    "status": "Done"
+  },
+  {
+    "task_id": 5,
+    "sprint_id": 3,
+    "task_name": "Build interactive prototype",
+    "department_id": 5,
+    "role_id": 6,
+    "assigned_to": 7,
+    "status": "In Progress"
+  },
+  {
+    "task_id": 6,
+    "sprint_id": 3,
+    "task_name": "Usability testing",
+    "department_id": 6,
+    "role_id": 9,
+    "assigned_to": 9,
+    "status": "Pending"
+  },
+  {
+    "task_id": 7,
+    "sprint_id": 4,
+    "task_name": "Feasibility study",
+    "department_id": 2,
+    "role_id": 2,
+    "assigned_to": 6,
+    "status": "Done"
+  },
+  {
+    "task_id": 8,
+    "sprint_id": 4,
+    "task_name": "CAD Design",
+    "department_id": 9,
+    "role_id": 13,
+    "assigned_to": 10,
+    "status": "Done"
+  },
+  {
+    "task_id": 9,
+    "sprint_id": 5,
+    "task_name": "Hardware prototyping",
+    "department_id": 5,
+    "role_id": 8,
+    "assigned_to": 4,
+    "status": "In Progress"
+  },
+  {
+    "task_id": 10,
+    "sprint_id": 5,
+    "task_name": "Circuit QA testing",
+    "department_id": 6,
+    "role_id": 10,
+    "assigned_to": 5,
+    "status": "Pending"
+  },
+  {
+    "task_id": 11,
+    "sprint_id": 6,
+    "task_name": "CAD modelling for car part",
+    "department_id": 9,
+    "role_id": 14,
+    "assigned_to": 10,
+    "status": "In Progress"
+  },
+  {
+    "task_id": 12,
+    "sprint_id": 6,
+    "task_name": "Mechanical stress testing",
+    "department_id": 6,
+    "role_id": 10,
+    "assigned_to": 2,
+    "status": "Pending"
+  }
+]

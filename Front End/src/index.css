@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    /* A more modern, welcoming blue for the client-facing portal */
+    --primary: 220 85% 45%;
+    --primary-foreground: 0 0% 98%;
+    --primary-light: 220 85% 55%;
+    --primary-glow: 220 85% 75%;
+
+    /* ... rest of the CSS file remains the same ... */
+    --secondary: 215 15% 95%;
+    --secondary-foreground: 215 25% 25%;
+
+    --muted: 215 15% 96%;
+    --muted-foreground: 215 20% 50%;
+
+    --accent: 215 100% 92%;
+    --accent-foreground: 215 85% 35%;
+    
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 215 20% 90%;
+    --input: 215 25% 95%;
+    --ring: 220 85% 55%;
+
+    /* Light mode task status */
+    --status-todo: 215 20% 65%;
+    --status-todo-bg: 215 25% 96%;
+    --status-todo-border: 215 25% 92%;
+
+    --status-progress: 45 95% 45%;
+    --status-progress-bg: 45 100% 94%;
+    --status-progress-border: 45 100% 88%;
+
+    --status-done: 142 70% 35%;
+    --status-done-bg: 142 80% 94%;
+    --status-done-border: 142 70% 88%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 215 25% 10%;
+    --foreground: 215 15% 85%;
+
+    --card: 215 25% 12%;
+    --card-foreground: 215 15% 85%;
+
+    --popover: 215 25% 10%;
+    --popover-foreground: 215 15% 85%;
+
+    /* A more modern, welcoming blue for the client-facing portal */
+    --primary: 220 85% 65%;
+    --primary-foreground: 215 25% 8%;
+    --primary-light: 220 85% 55%;
+    --primary-glow: 220 85% 35%;
+
+    --secondary: 215 25% 15%;
+    --secondary-foreground: 215 15% 85%;
+
+    --muted: 215 25% 15%;
+    --muted-foreground: 215 15% 65%;
+
+    --accent: 215 25% 15%;
+    --accent-foreground: 215 85% 65%;
+
+    --destructive: 0 85% 65%;
+    --destructive-foreground: 215 25% 8%;
+
+    --border: 215 25% 20%;
+    --input: 215 25% 15%;
+    --ring: 215 85% 65%;
+
+    /* Dark mode task status */
+    --status-todo: 215 15% 55%;
+    --status-todo-bg: 215 25% 12%;
+    --status-todo-border: 215 25% 25%;
+
+    --status-progress: 45 95% 60%;
+    --status-progress-bg: 45 30% 12%;
+    --status-progress-border: 45 40% 25%;
+
+    --status-done: 142 85% 45%;
+    --status-done-bg: 142 30% 12%;
+    --status-done-border: 142 30% 25%;
+  }
+}
+
+@layer components {
+  /* Additional component styles can be added here if needed */
+}

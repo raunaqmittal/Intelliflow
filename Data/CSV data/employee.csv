@@ -1,0 +1,101 @@
+employee_id,name,email,role_id,department_id,availability
+1,Neha Saxena,neha.saxena@company.com,11,7,Busy
+2,Komal Iyer,komal.iyer@company.com,11,7,Busy
+3,Sneha Dutta,sneha.dutta@company.com,5,4,On Leave
+4,Nikita Nanda,nikita.nanda@company.com,8,5,Available
+5,Anjali Arora,anjali.arora@company.com,7,5,Busy
+6,Komal Aggarwal,komal.aggarwal@company.com,2,2,Available
+7,Ananya Aggarwal,ananya.aggrawal@company.com,6,5,Available
+8,Devansh Aggarwal,devansh.aggrawal@company.com,4,3,On Leave
+9,Tanmay Mehta,tanmay.mehta@company.com,11,7,Available
+10,Ishita Kaur,ishita.kaur@company.com,2,2,Available
+11,Rohan Verma,rohan.verma@company.com,6,5,Available
+12,Priya Sharma,priya.sharma@company.com,3,3,Busy
+13,Aarav Singh,aarav.singh@company.com,7,5,Available
+14,Meera Kapoor,meera.kapoor@company.com,13,9,On Leave
+15,Aditya Rao,aditya.rao@company.com,8,5,Available
+16,Divya Malhotra,divya.malhotra@company.com,5,4,Busy
+17,Vivek Nair,vivek.nair@company.com,12,8,Available
+18,Shruti Bansal,shruti.bansal@company.com,9,6,On Leave
+19,Manish Yadav,manish.yadav@company.com,14,9,Available
+20,Simran Thakur,simran.thakur@company.com,1,1,Available
+21,Arjun Kulkarni,arjun.kulkarni@company.com,6,5,Busy
+22,Shreya Patel,shreya.patel@company.com,3,3,Available
+23,Nikita Chopra,nikita.chopra@company.com,4,3,Available
+24,Mohit Khanna,mohit.khanna@company.com,10,6,On Leave
+25,Anjali Pillai,anjali.pillai@company.com,13,9,Available
+26,Deepak Das,deepak.das@company.com,7,5,Busy
+27,Varun Mishra,varun.mishra@company.com,12,8,Available
+28,Ritika Reddy,ritika.reddy@company.com,5,4,Available
+29,Harsh Chauhan,harsh.chauhan@company.com,14,9,On Leave
+30,Nisha Kaur,nisha.kaur@company.com,2,2,Available
+31,Yash Saxena,yash.saxena@company.com,11,7,Available
+32,Kiran Iyer,kiran.iyer@company.com,6,5,Busy
+33,Rajesh Menon,rajesh.menon@company.com,7,5,Available
+34,Komal Nanda,komal.nanda@company.com,3,3,On Leave
+35,Aditi Aggarwal,aditi.aggrawal@company.com,4,3,Available
+36,Siddharth Dutta,siddharth.dutta@company.com,5,4,Available
+37,Pooja Sharma,pooja.sharma@company.com,1,1,Busy
+38,Rahul Mehta,rahul.mehta@company.com,2,2,Available
+39,Avni Verma,avni.verma@company.com,13,9,Available
+40,Kabir Nair,kabir.nair@company.com,14,9,Busy
+41,Ananya Kapoor,ananya.kapoor@company.com,6,5,Available
+42,Tanmay Rao,tanmay.rao@company.com,7,5,On Leave
+43,Ishita Singh,ishita.singh@company.com,5,4,Available
+44,Gaurav Joshi,gaurav.joshi@company.com,8,5,Busy
+45,Ritika Gupta,ritika.gupta@company.com,3,3,Available
+46,Harsh Malhotra,harsh.malhotra@company.com,4,3,Available
+47,Nisha Yadav,nisha.yadav@company.com,9,6,Busy
+48,Yash Thakur,yash.thakur@company.com,12,8,Available
+49,Kunal Kulkarni,kunal.kulkarni@company.com,10,6,On Leave
+50,Aarav Patel,aarav.patel@company.com,13,9,Available
+51,Divya Chopra,divya.chopra@company.com,5,4,Available
+52,Arjun Khanna,arjun.khanna@company.com,7,5,Busy
+53,Simran Arora,simran.arora@company.com,14,9,Available
+54,Varun Pillai,varun.pillai@company.com,6,5,Available
+55,Nikita Das,nikita.das@company.com,3,3,On Leave
+56,Akash Mishra,akash.mishra@company.com,8,5,Available
+57,Shreya Reddy,shreya.reddy@company.com,2,2,Available
+58,Meera Chauhan,meera.chauhan@company.com,1,1,Available
+59,Aditya Kaur,aditya.kaur@company.com,11,7,Busy
+60,Sneha Saxena,sneha.saxena@company.com,4,3,Available
+61,Rohan Iyer,rohan.iyer@company.com,6,5,Available
+62,Komal Menon,komal.menon@company.com,7,5,On Leave
+63,Sneha Nanda,sneha.nanda@company.com,5,4,Available
+64,Nikita Aggarwal,nikita.aggrawal@company.com,3,3,Available
+65,Anjali Dutta,anjali.dutta@company.com,13,9,Busy
+66,Ananya Sharma,ananya.sharma@company.com,14,9,Available
+67,Devansh Mehta,devansh.mehta@company.com,2,2,Available
+68,Tanmay Verma,tanmay.verma@company.com,9,6,Available
+69,Ishita Nair,ishita.nair@company.com,8,5,On Leave
+70,Deepak Kapoor,deepak.kapoor@company.com,12,8,Available
+71,Manish Rao,manish.rao@company.com,10,6,Available
+72,Priya Singh,priya.singh@company.com,7,5,Busy
+73,Aditi Joshi,aditi.joshi@company.com,5,4,Available
+74,Vivek Gupta,vivek.gupta@company.com,3,3,Available
+75,Neha Malhotra,neha.malhotra@company.com,4,3,On Leave
+76,Kabir Bansal,kabir.bansal@company.com,6,5,Available
+77,Avni Yadav,avni.yadav@company.com,13,9,Available
+78,Rajesh Thakur,rajesh.thakur@company.com,14,9,Busy
+79,Komal Kulkarni,komal.kulkarni@company.com,2,2,Available
+80,Rohan Patel,rohan.patel@company.com,7,5,Available
+81,Nisha Chopra,nisha.chopra@company.com,5,4,Available
+82,Kiran Khanna,kiran.khanna@company.com,8,5,On Leave
+83,Aditya Arora,aditya.arora@company.com,12,8,Available
+84,Ritika Pillai,ritika.pillai@company.com,9,6,Busy
+85,Harsh Das,harsh.das@company.com,3,3,Available
+86,Shreya Mishra,shreya.mishra@company.com,4,3,Available
+87,Simran Reddy,simran.reddy@company.com,13,9,Available
+88,Arjun Chauhan,arjun.chauhan@company.com,14,9,Busy
+89,Mohit Kaur,mohit.kaur@company.com,6,5,Available
+90,Anjali Saxena,anjali.saxena@company.com,7,5,Available
+91,Ananya Iyer,ananya.iyer@company.com,5,4,Available
+92,Tanmay Menon,tanmay.menon@company.com,8,5,On Leave
+93,Ishita Nanda,ishita.nanda@company.com,2,2,Available
+94,Divya Aggarwal,divya.aggrawal@company.com,3,3,Available
+95,Meera Dutta,meera.dutta@company.com,1,1,Available
+96,Rahul Sharma,rahul.sharma@company.com,11,7,Busy
+97,Avni Mehta,avni.mehta@company.com,13,9,Available
+98,Deepak Verma,deepak.verma@company.com,14,9,Available
+99,Priya Nair,priya.nair@company.com,6,5,On Leave
+100,Kunal Kapoor,kunal.kapoor@company.com,7,5,Available

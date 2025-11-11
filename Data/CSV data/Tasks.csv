@@ -1,0 +1,13 @@
+task_id,sprint_id,task_name,department_id,role_id,assigned_to,status
+1,1,Gather requirements from client,1,1,1,Done
+2,1,Create backlog & user stories,2,2,6,Done
+3,2,Draft wireframes,3,3,8,Done
+4,2,Define style guide,4,5,3,Done
+5,3,Build interactive prototype,5,6,7,In Progress
+6,3,Usability testing,6,9,9,Pending
+7,4,Feasibility study,2,2,6,Done
+8,4,CAD Design,9,13,10,Done
+9,5,Hardware prototyping,5,8,4,In Progress
+10,5,Circuit QA testing,6,10,5,Pending
+11,6,CAD modelling for car part,9,14,10,In Progress
+12,6,Mechanical stress testing,6,10,2,Pending

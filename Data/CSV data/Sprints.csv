@@ -1,0 +1,7 @@
+sprint_id,project_id,sprint_name,status
+1,1,Sprint 0 – Discovery,Completed
+2,1,Sprint 1 – Wireframes,Completed
+3,1,Sprint 2 – Hi-Fi Prototype,In Progress
+4,2,Phase 1 – Requirements,Completed
+5,2,Phase 2 – Prototype Build,In Progress
+6,3,Stage 1 – CAD Modelling,In Progress

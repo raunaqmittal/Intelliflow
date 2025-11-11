@@ -1,0 +1,38 @@
+[
+  {
+    "sprint_id": 1,
+    "project_id": 1,
+    "sprint_name": "Sprint 0 – Discovery",
+    "status": "Completed"
+  },
+  {
+    "sprint_id": 2,
+    "project_id": 1,
+    "sprint_name": "Sprint 1 – Wireframes",
+    "status": "Completed"
+  },
+  {
+    "sprint_id": 3,
+    "project_id": 1,
+    "sprint_name": "Sprint 2 – Hi-Fi Prototype",
+    "status": "In Progress"
+  },
+  {
+    "sprint_id": 4,
+    "project_id": 2,
+    "sprint_name": "Phase 1 – Requirements",
+    "status": "Completed"
+  },
+  {
+    "sprint_id": 5,
+    "project_id": 2,
+    "sprint_name": "Phase 2 – Prototype Build",
+    "status": "In Progress"
+  },
+  {
+    "sprint_id": 6,
+    "project_id": 3,
+    "sprint_name": "Stage 1 – CAD Modelling",
+    "status": "In Progress"
+  }
+]

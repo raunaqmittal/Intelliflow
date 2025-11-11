@@ -155,20 +155,12 @@ exports.getTasksByEmployee = catchAsync(async (req, res, next) => {
     .populate('project', 'project_title client_name status activeSprintNumber')
     .sort('-createdAt');
 
-  // Filter tasks based on active sprint (only show tasks in active or past sprints)
-  const visibleTasks = tasks.filter(task => {
-    if (!task.project || !task.project.activeSprintNumber) {
-      return true; // Show task if project data missing (safety fallback)
-    }
-    const taskSprintNum = task.sprint_number || 1;
-    return taskSprintNum <= task.project.activeSprintNumber;
-  });
-
+  // Show all tasks (removed sprint filtering to allow viewing future sprint tasks)
   res.status(200).json({
     status: 'success',
-    results: visibleTasks.length,
+    results: tasks.length,
     data: {
-      tasks: visibleTasks
+      tasks: tasks
     }
   });
 });
@@ -333,20 +325,12 @@ exports.getMyTasks = catchAsync(async (req, res, next) => {
     .populate('project', 'project_title client_name status activeSprintNumber')
     .sort('-createdAt');
 
-  // Filter tasks based on active sprint (only show tasks in active or past sprints)
-  const visibleTasks = tasks.filter(task => {
-    if (!task.project || !task.project.activeSprintNumber) {
-      return true; // Show task if project data missing (safety fallback)
-    }
-    const taskSprintNum = task.sprint_number || 1;
-    return taskSprintNum <= task.project.activeSprintNumber;
-  });
-
+  // Show all tasks (removed sprint filtering to allow viewing future sprint tasks)
   res.status(200).json({
     status: 'success',
-    results: visibleTasks.length,
+    results: tasks.length,
     data: {
-      tasks: visibleTasks
+      tasks: tasks
     }
   });
 });

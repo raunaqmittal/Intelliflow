@@ -1,5 +1,7 @@
 const express = require('express');
 const app = express();
+const dotenv = require('dotenv');
+dotenv.config({path: './config.env'});
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -14,6 +16,7 @@ const projectRouter = require('./routes/projectRoutes');
 const taskRouter = require('./routes/taskRoutes');
 const AppError = require('./Utilities/appError');
 const globalErrorHandler = require('./Controllers/errorController');
+const cors = require('cors');
 
 // Middlewares are the functions that can modify the incoming request data before it is sent to the final handler function
 // Middlewares can also modify the outgoing response data before it is sent to the client
@@ -27,8 +30,12 @@ const globalErrorHandler = require('./Controllers/errorController');
 app.use(helmet()); 
 
 // Middleware to parse JSON bodies
+app.use(cors(
+  {origin: process.env.FRONTEND_URL} // Allow requests from any origin
+));
 app.use(express.json({ limit: '10kb' })); // Body limit is 10kb
 
+// Enable CORS for all routes
 // Normalize duplicate slashes in request URL to avoid routing mismatches like /api/v1//tasks/:id
 app.use((req, res, next) => {
   if (req.url.includes('//')) {
@@ -55,7 +62,7 @@ app.use(hpp({
   ]
 }));
 
- //To serve static files
+//To serve static files
 app.use(express.static(`${__dirname}/public`));
 
 // Third party middleware for logging

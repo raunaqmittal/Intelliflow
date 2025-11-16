@@ -1,47 +1,80 @@
 # Intelliflow Backend
 
-## API Smoke Test
+## API Testing Suite
 
-A sequential lifecycle validation script lives at `Back End/tests/apiSmokeTest.js`.
+A comprehensive testing suite combining smoke tests and specific scenario validation lives at `Back End/tests/backendTesting.js`.
 
-### What It Covers
+### Test Modes
 
-1. Manager employee signup
-2. Client signup & login
-3. Client request creation
-4. Workflow generation
-5. Department approval (manager)
-6. Employee assignment to tasks
-7. Request approval → auto project & tasks creation
-8. Project & task stats retrieval
-9. Project/task detail endpoints
-10. Negative authorization (client tries manager-only action)
-11. Sprint advance attempt (may fail if incomplete)
+**SMOKE Mode (default)**: Generic endpoint coverage with temporary test data
+
+- Manager & client signup/login
+- Request creation & workflow generation
+- Department approvals & employee assignments
+- Request approval → project/task creation
+- Project & task stats, queries, updates
+- Client-safe status endpoint
+- Negative authorization tests
+- Sprint advancement attempts
+
+**SPECIFIC Mode**: Real client scenario with precise employee assignments
+
+- Uses existing client (contact@designx.com)
+- Creates temporary manager with full department access
+- Assigns specific employees to tasks by team:
+  - Research → Alex Research
+  - Design → Emma Designer
+  - Development (Frontend) → Sarah Frontend
+  - Development (Backend) → Mike Backend
+  - Testing → Shruti Bansal
+- Completes tasks and advances sprints
+- Full cleanup (deletes project and temp manager)
 
 ### Run
 
-PowerShell (Windows):
+**Smoke Test (default):**
 
 ```powershell
-node "Back End/tests/apiSmokeTest.js"
+node "Back End/tests/backendTesting.js"
 ```
 
-Optional environment variables:
+**Specific Scenario:**
 
 ```powershell
-$env:BASE_URL = "http://localhost:3000/api/v1"
-$env:VERBOSE = "true"
-node "Back End/tests/apiSmokeTest.js"
+$env:MODE = "specific"
+node "Back End/tests/backendTesting.js"
+```
+
+**Specific with Progressive Sprint Completion:**
+
+```powershell
+$env:MODE = "specific"; $env:PROGRESSIVE = "true"
+node "Back End/tests/backendTesting.js"
+```
+
+### Environment Variables
+
+- `MODE` - Test mode: "smoke" or "specific" (default: smoke)
+- `BASE_URL` - API base URL (default: http://localhost:3000/api/v1)
+- `PROGRESSIVE` - For specific mode: complete tasks per-sprint before advancing (default: false)
+- `VERBOSE` - Detailed logging (default: false)
+
+Example with all options:
+
+```powershell
+$env:MODE = "specific"; $env:PROGRESSIVE = "true"; $env:VERBOSE = "true"
+node "Back End/tests/backendTesting.js"
 ```
 
 ### Notes
 
-- Script mutates the database: creates users, request, project, tasks.
-- Use a dedicated test database or clean up manually afterwards.
+- **Smoke mode** creates temporary test data (not cleaned up automatically)
+- **Specific mode** includes automatic cleanup (deletes project and temp manager)
+- Use a dedicated test database for smoke tests or clean up manually
 - Some employee/client CRUD routes are currently unauthenticated; the script uses this to patch manager departments. Consider locking these down later.
 
 ### Next Improvements
 
-- Add cleanup routine (delete created entities) when run with `CLEANUP=true`.
-- Integrate with a test runner (Jest/Mocha) and add structured assertions.
-- Add load/performance sampling for key endpoints.
+- Add cleanup routine for smoke mode when run with `CLEANUP=true`
+- Integrate with a test runner (Jest/Mocha) and add structured assertions
+- Add load/performance sampling for key endpoints

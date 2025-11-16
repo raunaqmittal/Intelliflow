@@ -4,6 +4,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils"
 import { useUser } from "@/contexts/UserContext";
+import { UserPlus } from "lucide-react";
 
 const navigationItems = [
   {
@@ -32,6 +33,13 @@ const navigationItems = [
     url: "/manager/team",
     icon: Users,
     description: "Team Members",
+    exact: true
+  },
+  {
+    title: "Add Employee",
+    url: "/manager/add-employee",
+    icon: UserPlus,
+    description: "Create a new employee",
     exact: true
   },
   {

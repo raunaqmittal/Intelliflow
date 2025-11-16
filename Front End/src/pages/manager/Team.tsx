@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -83,10 +85,15 @@ export default function ManagerTeam() {
   return (
     <div className="p-8 space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-foreground">My Team</h1>
-        <p className="text-muted-foreground">
-          Overview of your team members and their current workload.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">My Team</h1>
+            <p className="text-muted-foreground">Overview of your team members and their current workload.</p>
+          </div>
+          <Link to="/manager/add-employee">
+            <Button>Add Employee</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

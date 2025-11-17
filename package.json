@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,green \"npm --prefix \\\"Back End\\\" run dev\" \"npm --prefix \\\"Front End\\\" run dev\"",
-    "dev:nodemon": "concurrently -n backend,frontend -c blue,green \"npm --prefix \\\"Back End\\\" run dev\" \"npm --prefix \\\"Front End\\\" run dev:nodemon\""
+    "dev:nodemon": "concurrently -n backend,frontend -c blue,green \"npm --prefix \\\"Back End\\\" run dev\" \"npm --prefix \\\"Front End\\\" run dev:nodemon\"",
+    "prod": "concurrently -n backend,frontend -c blue,green \"npm --prefix \\\"Back End\\\" run prod\" \"npm --prefix \\\"Front End\\\" run build && npm --prefix \\\"Front End\\\" run preview\""
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

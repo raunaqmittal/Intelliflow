@@ -6,6 +6,7 @@ const AppError = require('./../Utilities/appError');
 const {promisify} = require('util');
 const sendEmail = require('./../Utilities/email');
 const crypto = require('crypto');
+const OTPService = require('./../Utilities/otp');
 
 const signToken = id => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -19,11 +20,10 @@ const createSendToken = (user, statusCode, res) => {
   const cookieOptions = {
     // converting days to milliseconds
     expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000),
-    httpOnly: true // so that cookie cannot be accessed or modified by the browser
+    httpOnly: true, // Prevent XSS attacks by making cookie inaccessible to JavaScript
+    secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+    sameSite: 'strict' // Prevent CSRF attacks
   };
-
-  if (process.env.NODE_ENV === 'production') cookieOptions.secure = true; 
-  // this will only work on https
 
   res.cookie('jwt', token, cookieOptions);
 
@@ -41,17 +41,26 @@ const createSendToken = (user, statusCode, res) => {
 
 // Employee signup
 exports.signupEmployee = catchAsync(async (req, res, next) => {
+  // Security: Only allow role assignment if user is a manager
+  let assignedRole = 'employee'; // Default role
+  
+  if (req.body.role && req.user && req.user.role === 'manager') {
+    // Only managers can assign roles during signup
+    assignedRole = req.body.role;
+  }
+  
   const newEmployee = await Employee.create({
     employee_id: req.body.employee_id,
     name: req.body.name,
     email: req.body.email,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
-    role: req.body.role,
+    role: assignedRole,
     department: req.body.department,
     skills: req.body.skills,
     availability: req.body.availability,
-    phone: req.body.phone
+    phone: req.body.phone,
+    phoneVerified: req.body.phone ? true : false // Auto-enable OTP if phone provided
   });
   createSendToken(newEmployee, 201, res);
 });
@@ -65,6 +74,7 @@ exports.signupClient = catchAsync(async (req, res, next) => {
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
     phone: req.body.phone,
+    phoneVerified: req.body.phone ? true : false, // Auto-enable OTP if phone provided
     industry: req.body.industry,
     address: req.body.address
   });
@@ -107,6 +117,19 @@ exports.loginClient = catchAsync(async (req, res, next) => {
 
   // 3) If everything ok, send token to client
   createSendToken(client, 200, res);
+});
+
+// Logout - clear httpOnly cookie
+exports.logout = catchAsync(async (req, res, next) => {
+  res.cookie('jwt', 'loggedout', {
+    expires: new Date(Date.now() + 10 * 1000), // 10 seconds
+    httpOnly: true
+  });
+  
+  res.status(200).json({
+    status: 'success',
+    message: 'Logged out successfully'
+  });
 });
 
 exports.protect = catchAsync(async (req, res, next) => {
@@ -175,47 +198,91 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     return next(new AppError('There is no user with that email address.', 404));
   }
 
-  // 2) Generate the random reset token
-  const resetToken = user.createPasswordResetToken();
-  await user.save({ validateBeforeSave: false });
+  // 2) Check if user has verified phone number (OTP PATH)
+  if (user.phone && user.phoneVerified) {
+    // ========== OTP PATH (SECURE - FOR USERS WITH VERIFIED PHONES) ==========
+    
+    // Rate limiting check
+    if (!OTPService.canSendOTP(user.otpLastSent)) {
+      return next(new AppError('Please wait before requesting another OTP', 429));
+    }
 
-  // 3) Send it to user's email
-  const resetURL = `${req.protocol}://${req.get(
-    'host'
-  )}/api/v1/${userType}/resetPassword/${resetToken}`;
-
-  const emailAddress = user.email || user.contact_email;
-  const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL}.\nIf you didn't forget your password, please ignore this email!`;
-
-  // In development, return token directly; in production, send email
-  if (process.env.NODE_ENV === 'development') {
-    return res.status(200).json({
-      status: 'success',
-      message: 'Token generated! (Development mode - token included in response)',
-      resetToken,
-      resetURL
-    });
-  }
-
-  try {
-    await sendEmail({
-      email: emailAddress,
-      subject: 'Your password reset token (valid for 10 min)',
-      message
-    });
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Token sent to email!'
-    });
-  } catch (err) {
-    user.passwordResetToken = undefined;
-    user.passwordResetExpires = undefined;
+    // Generate 6-digit OTP
+    const otp = OTPService.generateOTP();
+    
+    // Store hashed OTP in database
+    user.otpCode = OTPService.hashOTP(otp);
+    user.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
+    user.otpAttempts = 0;
+    user.otpLastSent = Date.now();
     await user.save({ validateBeforeSave: false });
 
-    return next(
-      new AppError('There was an error sending the email. Try again later!', 500)
-    );
+    // Send OTP via SMS
+    const smsResult = await OTPService.sendSMS(user.phone, otp);
+    
+    if (!smsResult.success && !smsResult.devMode) {
+      // SMS failed, clear OTP and fallback to email
+      user.otpCode = undefined;
+      user.otpExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      
+      return next(new AppError('Failed to send OTP. Please try again or contact support.', 500));
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      method: 'otp',
+      message: 'OTP sent to your registered phone number',
+      maskedPhone: OTPService.maskPhone(user.phone),
+      expiresIn: process.env.OTP_EXPIRY_MINUTES || 5
+    });
+  } else {
+    // ========== EMAIL PATH (LEGACY - FOR USERS WITHOUT VERIFIED PHONES) ==========
+    
+    // Generate the random reset token
+    const resetToken = user.createPasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Send it to user's email
+    const resetURL = `${req.protocol}://${req.get(
+      'host'
+    )}/api/v1/${userType}/resetPassword/${resetToken}`;
+
+    const emailAddress = user.email || user.contact_email;
+    const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL}.\nIf you didn't forget your password, please ignore this email!`;
+
+    // In development, return token directly; in production, send email
+    if (process.env.NODE_ENV === 'development') {
+      return res.status(200).json({
+        status: 'success',
+        method: 'email',
+        message: 'Token generated! (Development mode - token included in response)',
+        resetToken,
+        resetURL
+      });
+    }
+
+    try {
+      await sendEmail({
+        email: emailAddress,
+        subject: 'Your password reset token (valid for 10 min)',
+        message
+      });
+
+      res.status(200).json({
+        status: 'success',
+        method: 'email',
+        message: 'Token sent to email!'
+      });
+    } catch (err) {
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      return next(
+        new AppError('There was an error sending the email. Try again later!', 500)
+      );
+    }
   }
 });
 
@@ -284,4 +351,79 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   // 4) Log user in, send JWT
   createSendToken(user, 200, res);
 
+});
+
+// Verify OTP for password reset
+exports.verifyResetOTP = catchAsync(async (req, res, next) => {
+  const { email, otpCode } = req.body;
+
+  if (!email || !otpCode) {
+    return next(new AppError('Please provide email and OTP code', 400));
+  }
+
+  // 1) Find user by email (check Employee or Client)
+  let user = await Employee.findOne({ email }).select('+otpCode');
+  let userType = 'employees';
+  
+  if (!user) {
+    user = await Client.findOne({ contact_email: email }).select('+otpCode');
+    userType = 'clients';
+  }
+
+  if (!user) {
+    return next(new AppError('Invalid request', 400));
+  }
+
+  // 2) Check if OTP exists and hasn't expired
+  if (!user.otpCode || !user.otpExpires) {
+    return next(new AppError('No OTP request found. Please request a new OTP.', 400));
+  }
+
+  if (OTPService.isExpired(user.otpExpires)) {
+    // Clear expired OTP
+    user.otpCode = undefined;
+    user.otpExpires = undefined;
+    user.otpAttempts = 0;
+    await user.save({ validateBeforeSave: false });
+    
+    return next(new AppError('OTP has expired. Please request a new one.', 400));
+  }
+
+  // 3) Check attempts (max 3)
+  if (user.otpAttempts >= 3) {
+    // Clear OTP after too many attempts
+    user.otpCode = undefined;
+    user.otpExpires = undefined;
+    user.otpAttempts = 0;
+    await user.save({ validateBeforeSave: false });
+    
+    return next(new AppError('Too many invalid attempts. Please request a new OTP.', 429));
+  }
+
+  // 4) Verify OTP
+  if (!OTPService.verifyOTP(otpCode, user.otpCode)) {
+    user.otpAttempts += 1;
+    await user.save({ validateBeforeSave: false });
+    
+    const attemptsLeft = 3 - user.otpAttempts;
+    return next(new AppError(`Invalid OTP. ${attemptsLeft} ${attemptsLeft === 1 ? 'attempt' : 'attempts'} remaining.`, 401));
+  }
+
+  // 5) OTP is valid - generate password reset token
+  const resetToken = user.createPasswordResetToken();
+  
+  // Clear OTP fields
+  user.otpCode = undefined;
+  user.otpExpires = undefined;
+  user.otpAttempts = 0;
+  
+  await user.save({ validateBeforeSave: false });
+
+  // 6) Return reset token to frontend
+  res.status(200).json({
+    status: 'success',
+    message: 'OTP verified successfully',
+    resetToken,
+    userType // Frontend needs this to know which endpoint to call for password reset
+  });
 });

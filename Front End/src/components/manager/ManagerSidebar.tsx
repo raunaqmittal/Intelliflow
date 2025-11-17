@@ -1,10 +1,9 @@
 import { useState } from "react"
-import { LayoutDashboard, FolderKanban, Users, User, Menu, X, LogOut, ListChecks, KeyRound } from "lucide-react"
+import { LayoutDashboard, FolderKanban, Users, User, Menu, X, LogOut, ListChecks, KeyRound, UserPlus, Building2 } from "lucide-react"
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils"
 import { useUser } from "@/contexts/UserContext";
-import { UserPlus } from "lucide-react";
 
 const navigationItems = [
   {
@@ -40,6 +39,13 @@ const navigationItems = [
     url: "/manager/add-employee",
     icon: UserPlus,
     description: "Create a new employee",
+    exact: true
+  },
+  {
+    title: "Add Client",
+    url: "/manager/add-client",
+    icon: Building2,
+    description: "Register a new client",
     exact: true
   },
   {

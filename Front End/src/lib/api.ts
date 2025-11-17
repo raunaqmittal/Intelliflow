@@ -5,10 +5,11 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export const api = axios.create({
   baseURL,
-  withCredentials: false
+  withCredentials: true // Enable sending cookies with requests (for httpOnly cookies)
 });
 
 // Attach Authorization header from localStorage if present
+// Note: Moving to httpOnly cookies for better security, but keeping token for backward compatibility
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
   if (token) {

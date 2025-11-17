@@ -22,6 +22,10 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [devToken, setDevToken] = useState<string | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
+  const [method, setMethod] = useState<'email' | 'otp' | null>(null);
+  const [maskedPhone, setMaskedPhone] = useState<string>('');
+  const [otpCode, setOtpCode] = useState<string>('');
 
   useEffect(() => {
     if (inferredRole) setRole(inferredRole);
@@ -37,19 +41,47 @@ export default function ForgotPassword() {
     setDevToken(null);
     try {
       const res = await api.post(`/${endpointBase}/forgotPassword`, { email });
-      // In development, backend returns resetToken and resetURL
-      const { message, resetToken, resetURL } = res.data || {};
-      toast({ title: 'Request received', description: message || 'If an account exists for this email, you\'ll receive a reset link shortly.' });
-      if (resetToken) {
-        setDevToken(resetToken);
-      }
-      // If not in dev, guide the user
-      if (!resetToken && resetURL) {
-        // Not expected, but handle gracefully
-        setDevToken(resetURL);
+      const { message, resetToken, method: resetMethod, maskedPhone: phone } = res.data || {};
+      
+      setMethod(resetMethod);
+      
+      if (resetMethod === 'otp') {
+        // OTP was sent via SMS
+        setOtpSent(true);
+        setMaskedPhone(phone || '');
+        toast({ title: 'OTP Sent', description: message || `OTP sent to ${phone}` });
+      } else {
+        // Email reset link sent
+        toast({ title: 'Email Sent', description: message || 'If an account exists for this email, you\'ll receive a reset link shortly.' });
+        if (resetToken) {
+          setDevToken(resetToken);
+        }
       }
     } catch (err: unknown) {
       let msg = 'Failed to request password reset.';
+      if (err instanceof AxiosError && err.response?.data?.message) {
+        msg = err.response.data.message;
+      }
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.post(`/${endpointBase}/verify-reset-otp`, { email, otpCode });
+      const { resetToken } = res.data || {};
+      
+      if (resetToken) {
+        toast({ title: 'OTP Verified', description: 'Redirecting to reset password...' });
+        // Navigate to reset password page with token
+        navigate(`/reset-password/${resetToken}?role=${role}`);
+      }
+    } catch (err: unknown) {
+      let msg = 'Invalid or expired OTP.';
       if (err instanceof AxiosError && err.response?.data?.message) {
         msg = err.response.data.message;
       }
@@ -87,8 +119,23 @@ export default function ForgotPassword() {
 
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium">Email</label>
-            <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={otpSent} />
           </div>
+
+          {otpSent && method === 'otp' && (
+            <div className="space-y-2">
+              <label htmlFor="otp" className="text-sm font-medium">Enter OTP</label>
+              <p className="text-xs text-muted-foreground">OTP sent to {maskedPhone}</p>
+              <Input 
+                id="otp" 
+                type="text" 
+                placeholder="Enter 6-digit OTP" 
+                value={otpCode} 
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} 
+                maxLength={6}
+              />
+            </div>
+          )}
 
           {error && (
             <div className="p-3 rounded-lg bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800">
@@ -96,9 +143,20 @@ export default function ForgotPassword() {
             </div>
           )}
 
-          <Button className="w-full" size="lg" onClick={handleSubmit} disabled={!email || loading}>
-            {loading ? 'Sending…' : 'Send reset link'}
-          </Button>
+          {!otpSent ? (
+            <Button className="w-full" size="lg" onClick={handleSubmit} disabled={!email || loading}>
+              {loading ? 'Sending…' : 'Send OTP or Reset Link'}
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <Button className="w-full" size="lg" onClick={handleVerifyOtp} disabled={otpCode.length !== 6 || loading}>
+                {loading ? 'Verifying…' : 'Verify OTP'}
+              </Button>
+              <Button variant="outline" className="w-full" size="lg" onClick={() => { setOtpSent(false); setOtpCode(''); setError(''); }} disabled={loading}>
+                Resend OTP
+              </Button>
+            </div>
+          )}
 
           <div className="text-sm text-muted-foreground text-center">
             Remembered it? <button className="underline" onClick={() => navigate('/login')}>Back to login</button>

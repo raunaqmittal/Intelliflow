@@ -30,9 +30,10 @@ const cors = require('cors');
 app.use(helmet()); 
 
 // Middleware to parse JSON bodies
-app.use(cors(
-  {origin: process.env.FRONTEND_URL} // Allow requests from any origin
-));
+app.use(cors({
+  origin: process.env.FRONTEND_URL, // Allow requests only from frontend
+  credentials: true // Allow cookies to be sent with requests
+}));
 app.use(express.json({ limit: '10kb' })); // Body limit is 10kb
 
 // Enable CORS for all routes
@@ -81,7 +82,22 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again in an hour!'
 });
 
+// Stricter rate limiting for authentication endpoints
+// In development, use higher limits to allow testing
+const authLimiter = rateLimit({
+  max: process.env.NODE_ENV === 'development' ? 50 : 5, // 50 in dev, 5 in prod
+  windowMs: 15 * 60 * 1000, // per 15 minutes
+  message: 'Too many authentication attempts, please try again after 15 minutes',
+  skipSuccessfulRequests: false
+});
+
 app.use('/api', limiter); // applying the rate limiter to all the routes that start with /api (i.e. all the api routes
+app.use('/api/v1/employees/login', authLimiter);
+app.use('/api/v1/employees/signup', authLimiter);
+app.use('/api/v1/clients/login', authLimiter);
+app.use('/api/v1/clients/signup', authLimiter);
+app.use('/api/v1/employees/forgotPassword', authLimiter);
+app.use('/api/v1/clients/forgotPassword', authLimiter);
 
 
 // 2) Setting up the routes

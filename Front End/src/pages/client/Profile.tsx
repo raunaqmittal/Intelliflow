@@ -51,6 +51,7 @@ export default function Profile() {
       const res = await api.patch('/clients/updateMe', {
         client_name: editForm.client_name,
         contact_email: editForm.contact_email,
+        phone: editForm.phone,
       });
       const updated: ClientProfile = res.data?.data?.client;
       setProfile(updated);
@@ -156,6 +157,17 @@ export default function Profile() {
                   value={editForm.contact_email || ''}
                   onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+919876543210"
+                  value={editForm.phone || ''}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">Enter phone in international format (e.g., +919876543210)</p>
               </div>
             </div>
           ) : (

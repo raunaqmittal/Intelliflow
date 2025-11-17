@@ -76,7 +76,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   if (req.body.password || req.body.passwordConfirm) {
     return next(new AppError('This route is not for password updates. Please use /updateMyPassword.', 400));
   }
-  const filteredBody = filterObj(req.body, 'client_name', 'contact_email');
+  const filteredBody = filterObj(req.body, 'client_name', 'contact_email', 'phone', 'phoneVerified');
   const updatedClient = await Client.findByIdAndUpdate(req.user.id, filteredBody, {
     new: true,
     runValidators: true

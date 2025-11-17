@@ -124,6 +124,7 @@ exports.updateEmployee = catchAsync(async (req, res, next) => {
     'skills',
     'availability',
     'phone',
+    'phoneVerified',
     'isApprover',
     'approvesDepartments'
   );

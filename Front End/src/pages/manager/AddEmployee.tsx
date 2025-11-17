@@ -80,8 +80,8 @@ export default function AddEmployee() {
       toast({ title: 'Unable to assign new ID', description: 'Could not compute next employee_id', variant: 'destructive' })
       return
     }
-    if (!form.name || !form.email || !form.password || !form.passwordConfirm) {
-      toast({ title: 'Missing fields', description: 'Name, email and password are required', variant: 'destructive' })
+    if (!form.name || !form.email || !form.phone || !form.password || !form.passwordConfirm) {
+      toast({ title: 'Missing fields', description: 'Name, email, phone and password are required', variant: 'destructive' })
       return
     }
     // Determine role from selection or custom input or fallback
@@ -96,7 +96,7 @@ export default function AddEmployee() {
         employee_id: nextId,
         name: form.name,
         email: form.email,
-        phone: form.phone || undefined,
+        phone: form.phone,
         role: roleToUse,
         department: form.department || defaultDept,
         availability: form.availability,
@@ -165,8 +165,8 @@ export default function AddEmployee() {
               )}
             </div>
             <div>
-              <Label htmlFor="phone">Phone (optional)</Label>
-              <Input id="phone" value={form.phone} onChange={handleChange('phone')} placeholder="+91 90000 00000" />
+              <Label htmlFor="phone">Phone</Label>
+              <Input id="phone" value={form.phone} onChange={handleChange('phone')} placeholder="+91 90000 00000" required />
             </div>
             <div>
               <Label>Department</Label>

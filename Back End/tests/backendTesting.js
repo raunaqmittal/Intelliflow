@@ -56,9 +56,10 @@ async function smokeTest(){
       employee_id: unique % 1000000,
       name: 'Test Manager',
       email: managerEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       password: 'Test1234!',
       passwordConfirm: 'Test1234!',
-      role: 'manager',
+      role: 'manager', // Will be ignored due to security fix, but keeping for clarity
       department: 'Development',
       availability: 'Available',
       skills: ['leadership']
@@ -67,6 +68,15 @@ async function smokeTest(){
     managerToken = signupRes.data.token;
     managerEmpId = signupRes.data.data.user._id;
     push('manager_signup', true, managerEmpId);
+
+    // 1a. Upgrade employee to manager role (security: only allowed via direct DB update for testing)
+    log('1a. Upgrade to Manager Role');
+    const upgradeRes = await axios.patch(`${BASE_URL}/employees/${managerEmpId}`, {
+      role: 'manager',
+      isApprover: true
+    });
+    assert(upgradeRes.data.status === 'success', 'Manager role upgrade failed');
+    push('upgrade_to_manager', true, 'manager');
 
     // 1b. Patch manager to add approvesDepartments
     log('1b. Extend Manager Departments');
@@ -83,6 +93,7 @@ async function smokeTest(){
       client_id: unique % 1000000 + 1000000, // Different from manager ID
       client_name: 'Test Client',
       contact_email: clientEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       password: 'Client1234!',
       passwordConfirm: 'Client1234!'
     });
@@ -222,8 +233,18 @@ async function smokeTest(){
     assert(updateTaskRes.data.status === 'success', 'Task status update failed');
     push('update_task_status', true, updateTaskRes.data.data.task.status);
 
-    // 17. Negative test - unauthorized access
-    log('17. Negative Test - Unauthorized Access');
+    // 17. Test OTP password reset flow
+    log('17. Test OTP Password Reset');
+    const forgotRes = await axios.post(`${BASE_URL}/employees/forgotPassword`, { email: managerEmail });
+    assert(forgotRes.data.status === 'success', 'Forgot password failed');
+    if(forgotRes.data.method === 'otp'){
+      push('password_reset_otp', true, `OTP sent to ${forgotRes.data.maskedPhone}`);
+    } else {
+      push('password_reset_email', true, 'Email reset token generated');
+    }
+
+    // 18. Negative test - unauthorized access
+    log('18. Negative Test - Unauthorized Access');
     try {
       await axios.get(`${BASE_URL}/projects/${projectId}`);
       push('negative_test_auth', false, 'Should have failed without token');
@@ -232,16 +253,16 @@ async function smokeTest(){
       push('negative_test_auth', true, 'Correctly rejected unauthorized request');
     }
 
-    // 18. Get my tasks (manager)
-    log('18. Get My Tasks');
+    // 19. Get my tasks (manager)
+    log('19. Get My Tasks');
     const myTasksRes = await axios.get(`${BASE_URL}/tasks/my-tasks`, {
       headers: { Authorization: `Bearer ${managerToken}` }
     });
     assert(myTasksRes.data.status === 'success', 'Get my tasks failed');
     push('get_my_tasks', true, myTasksRes.data.data.tasks.length);
 
-    // 19. Attempt advance sprint (won't advance until tasks complete, but tests endpoint)
-    log('19. Attempt Advance Sprint');
+    // 20. Attempt advance sprint (won't advance until tasks complete, but tests endpoint)
+    log('20. Attempt Advance Sprint');
     try {
       const advRes = await axios.patch(`${BASE_URL}/projects/${projectId}/advance-sprint`, {},
         { headers: { Authorization: `Bearer ${managerToken}` }}
@@ -315,6 +336,7 @@ async function specificTest(){
       employee_id: unique % 1000000,
       name: 'Temp Omni Manager',
       email: tempManagerEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       password,
       passwordConfirm: password,
       role: 'manager',

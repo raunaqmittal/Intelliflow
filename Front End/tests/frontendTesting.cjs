@@ -43,6 +43,7 @@ async function testClientPortal(){
       client_id: unique % 1000000 + 5000000,
       client_name: 'Frontend Test Client',
       contact_email: clientEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       password: 'Client1234!',
       passwordConfirm: 'Client1234!'
     });
@@ -125,7 +126,11 @@ async function testClientPortal(){
       email: clientEmail
     });
     assert(forgotPw.data.status === 'success', 'Forgot password failed');
-    push('client_forgot_password', true, 'Email sent');
+    const resetMethod = forgotPw.data.method || 'email';
+    push('client_forgot_password', true, `Method: ${resetMethod}`);
+    if(resetMethod === 'otp'){
+      log(`   📱 OTP sent to ${forgotPw.data.maskedPhone}`);
+    }
 
     // 10. Update Password
     log('10. Update Password');
@@ -169,6 +174,7 @@ async function testEmployeePortal(){
       employee_id: unique % 1000000,
       name: 'Frontend Test Employee',
       email: employeeEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       password: 'Employee1234!',
       passwordConfirm: 'Employee1234!',
       role: 'employee',
@@ -230,7 +236,11 @@ async function testEmployeePortal(){
       email: employeeEmail
     });
     assert(forgotPw.data.status === 'success', 'Forgot password failed');
-    push('employee_forgot_password', true, 'Email sent');
+    const resetMethod = forgotPw.data.method || 'email';
+    push('employee_forgot_password', true, `Method: ${resetMethod}`);
+    if(resetMethod === 'otp'){
+      log(`   📱 OTP sent to ${forgotPw.data.maskedPhone}`);
+    }
 
     // 8. Update Password
     log('8. Update Password');
@@ -282,9 +292,10 @@ async function testManagerPortal(){
       employee_id: unique % 1000000 + 2000000,
       name: 'Frontend Test Manager',
       email: managerEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       password: 'Manager1234!',
       passwordConfirm: 'Manager1234!',
-      role: 'manager',
+      role: 'manager', // Will be ignored due to security, default to 'employee'
       department: 'Development',
       availability: 'Available',
       skills: ['leadership']
@@ -293,6 +304,15 @@ async function testManagerPortal(){
     managerToken = managerSignup.data.token;
     managerId = managerSignup.data.data.user._id;
     push('manager_signup', true, managerId);
+
+    // 1a. Upgrade to manager role
+    log('1a. Upgrade to Manager Role');
+    const upgradeRes = await axios.patch(`${BASE_URL}/employees/${managerId}`, {
+      role: 'manager',
+      isApprover: true
+    });
+    assert(upgradeRes.data.status === 'success', 'Manager role upgrade failed');
+    push('manager_upgrade_role', true, 'manager');
 
     // 1b. Extend manager departments
     log('1b. Extend Manager Departments');
@@ -326,6 +346,7 @@ async function testManagerPortal(){
       client_id: unique % 1000000 + 6000000,
       client_name: 'Manager Test Client',
       contact_email: testClientEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       password: 'Client1234!',
       passwordConfirm: 'Client1234!'
     });
@@ -446,6 +467,7 @@ async function testManagerPortal(){
       employee_id: unique % 1000000 + 3000000,
       name: 'New Frontend Test Employee',
       email: newEmpEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       password: 'NewEmp1234!',
       passwordConfirm: 'NewEmp1234!',
       role: 'employee',
@@ -455,6 +477,20 @@ async function testManagerPortal(){
     });
     assert(addEmp.data.status === 'success', 'Add employee failed');
     push('manager_add_employee', true, addEmp.data.data.user._id);
+
+    // 16b. Add New Client
+    log('16b. Add New Client');
+    const newClientEmail = `new.client.${unique}@example.com`;
+    const addClient = await axios.post(`${BASE_URL}/clients/signup`, {
+      client_id: unique % 1000000 + 7000000,
+      client_name: 'New Manager Test Client',
+      contact_email: newClientEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+      password: 'NewClient1234!',
+      passwordConfirm: 'NewClient1234!',
+    });
+    assert(addClient.data.status === 'success', 'Add client failed');
+    push('manager_add_client', true, addClient.data.data.user._id);
 
     // 17. Advance Sprint
     log('17. Advance Sprint');

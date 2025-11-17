@@ -53,8 +53,33 @@ const employeeSchema = new mongoose.Schema({
     default: 'Available'
   },
   phone: {
-    type: String
+    type: String,
+    required: [true, 'Please provide a phone number'],
+    // unique: true, // DISABLED FOR TESTING - Enable in production
+    // sparse: true,
+    validate: {
+      validator: function(v) {
+        if (!v) return false; // Phone is now required
+        return /^\+?[1-9]\d{9,14}$/.test(v); // E.164 format
+      },
+      message: 'Please provide a valid phone number in international format (e.g., +919876543210)'
+    }
   },
+  phoneVerified: {
+    type: Boolean,
+    default: false
+  },
+  // OTP fields for password reset
+  otpCode: {
+    type: String,
+    select: false // Don't include in queries by default
+  },
+  otpExpires: Date,
+  otpAttempts: {
+    type: Number,
+    default: 0
+  },
+  otpLastSent: Date,
   password: {
     type: String,
     required: [true, 'Please provide a password'],

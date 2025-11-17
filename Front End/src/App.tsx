@@ -38,6 +38,7 @@ import ProjectDetails from "./pages/manager/ProjectDetails";
 import ManagerRequests from "./pages/manager/Requests";
 import ManagerRequestDetails from "./pages/manager/RequestDetails";
 import AddEmployee from "./pages/manager/AddEmployee";
+import AddClient from "./pages/manager/AddClient";
 
 // Common Pages
 import Login from "./pages/Login";
@@ -253,6 +254,16 @@ const App = () => (
                 <ProtectedRoute allowedRole="manager">
                   <PortalLayout sidebar={<ManagerSidebar />}>
                     <AddEmployee />
+                  </PortalLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manager/add-client"
+              element={
+                <ProtectedRoute allowedRole="manager">
+                  <PortalLayout sidebar={<ManagerSidebar />}>
+                    <AddClient />
                   </PortalLayout>
                 </ProtectedRoute>
               }

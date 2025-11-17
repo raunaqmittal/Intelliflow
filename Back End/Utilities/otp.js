@@ -28,14 +28,14 @@ class OTPService {
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   static async sendSMS(phoneNumber, otp) {
-    // In development mode, always log OTP and return success (don't send real SMS)
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📱 DEV MODE - OTP for ${phoneNumber}: ${otp}`);
-      return { success: true, devMode: true };
-    }
-
-    // Check if Twilio is configured (production mode)
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+    // Check if Twilio is configured
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
+      // In development without Twilio, log OTP to console
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📱 DEV MODE - OTP for ${phoneNumber}: ${otp}`);
+        return { success: true, devMode: true };
+      }
+      
       return { 
         success: false, 
         error: 'SMS service not configured. Please add Twilio credentials to config.env' 

@@ -37,6 +37,13 @@ router.post(
   requestController.departmentApprove
 ); // Manager approves their department for this request
 
+// Department rejection endpoint (department approvers)
+router.post(
+  '/:id/department-reject',
+  authController.restrictTo('manager'),
+  requestController.departmentReject
+); // Manager rejects their department for this request
+
 // Manager review & actions (restrict to managers only)
 router.patch(
   '/:id/workflow',

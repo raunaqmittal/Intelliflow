@@ -10,6 +10,9 @@ router.post('/logout', authController.logout);
 
 router.post('/forgotPassword', authController.forgotPassword);
 router.post('/verify-reset-otp', authController.verifyResetOTP);
+router.post('/verify-login-otp', authController.verifyLoginOTP);
+router.post('/send-phone-verification-otp', authController.protect, employeeController.sendPhoneVerificationOTP);
+router.post('/verify-phone', authController.protect, employeeController.verifyPhone);
 router.patch('/resetPassword/:token', authController.resetPassword);
 router.patch('/updateMyPassword', authController.protect, authController.updatePassword);
 

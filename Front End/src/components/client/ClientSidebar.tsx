@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutDashboard, FolderKanban, PlusCircle, User, Menu, X, LogOut, KeyRound } from "lucide-react";
+import { LayoutDashboard, FolderKanban, PlusCircle, User, Menu, X, LogOut } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,13 +33,6 @@ const navigationItems = [
     url: "/client/profile",
     icon: User,
     description: "Contact Information",
-    exact: true
-  },
-  {
-    title: "Change Password",
-    url: "/client/change-password",
-    icon: KeyRound,
-    description: "Update your password",
     exact: true
   },
 ];

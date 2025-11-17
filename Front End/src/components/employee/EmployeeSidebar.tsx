@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { LayoutDashboard, CheckSquare, User, Menu, X, LogOut, KeyRound, FolderKanban, Users } from "lucide-react"
+import { LayoutDashboard, CheckSquare, User, Menu, X, LogOut, FolderKanban, Users } from "lucide-react"
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils"
@@ -39,13 +39,6 @@ const navigationItems = [
     url: "/employee/profile", 
     icon: User,
     description: "Personal Settings",
-    exact: true
-  },
-  {
-    title: "Change Password",
-    url: "/employee/change-password",
-    icon: KeyRound,
-    description: "Update your password",
     exact: true
   },
 ]

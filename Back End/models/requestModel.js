@@ -27,8 +27,11 @@ const requestSchema = new mongoose.Schema({
     {
       department: { type: String, required: true },
       approved: { type: Boolean, default: false },
+      rejected: { type: Boolean, default: false },
       approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
-      approvedAt: { type: Date }
+      rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
+      approvedAt: { type: Date },
+      rejectedAt: { type: Date }
     }
   ],
   generatedWorkflow: {

@@ -69,7 +69,17 @@ const employeeSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  // OTP fields for password reset
+  // Two-Factor Authentication
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  twoFactorMethod: {
+    type: String,
+    enum: ['sms', 'email'],
+    default: 'sms'
+  },
+  // OTP fields for password reset and 2FA
   otpCode: {
     type: String,
     select: false // Don't include in queries by default

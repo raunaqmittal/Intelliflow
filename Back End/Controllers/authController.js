@@ -96,7 +96,48 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
     return next(new AppError('Incorrect email or password', 401));
   }
 
-  // 3) If everything ok, send token to client
+  // 3) Check if 2FA is enabled
+  if (employee.twoFactorEnabled && employee.phone && employee.phoneVerified) {
+    // Rate limiting check
+    if (!OTPService.canSendOTP(employee.otpLastSent)) {
+      return next(new AppError('Please wait before requesting another OTP', 429));
+    }
+
+    // Generate and send OTP
+    const otp = OTPService.generateOTP();
+    employee.otpCode = OTPService.hashOTP(otp);
+    employee.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
+    employee.otpAttempts = 0;
+    employee.otpLastSent = Date.now();
+    await employee.save({ validateBeforeSave: false });
+
+    // Send OTP via SMS
+    console.log(`📱 Sending login OTP to ${employee.phone}...`);
+    const smsResult = await OTPService.sendSMS(employee.phone, otp);
+    console.log('SMS Result:', smsResult);
+    
+    if (!smsResult.success && !smsResult.devMode) {
+      // SMS failed, clear OTP
+      console.error('❌ Failed to send login OTP');
+      employee.otpCode = undefined;
+      employee.otpExpires = undefined;
+      await employee.save({ validateBeforeSave: false });
+      
+      return next(new AppError('Failed to send OTP. Please try again or contact support.', 500));
+    }
+    
+    console.log('✅ Login OTP sent successfully');
+
+    return res.status(200).json({
+      status: 'otp_required',
+      message: 'OTP sent to your registered phone number',
+      email: employee.email,
+      maskedPhone: OTPService.maskPhone(employee.phone),
+      expiresIn: process.env.OTP_EXPIRY_MINUTES || 5
+    });
+  }
+
+  // 4) If 2FA not enabled, log in normally
   createSendToken(employee, 200, res);
 });
 
@@ -115,7 +156,48 @@ exports.loginClient = catchAsync(async (req, res, next) => {
     return next(new AppError('Incorrect email or password', 401));
   }
 
-  // 3) If everything ok, send token to client
+  // 3) Check if 2FA is enabled
+  if (client.twoFactorEnabled && client.phone && client.phoneVerified) {
+    // Rate limiting check
+    if (!OTPService.canSendOTP(client.otpLastSent)) {
+      return next(new AppError('Please wait before requesting another OTP', 429));
+    }
+
+    // Generate and send OTP
+    const otp = OTPService.generateOTP();
+    client.otpCode = OTPService.hashOTP(otp);
+    client.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
+    client.otpAttempts = 0;
+    client.otpLastSent = Date.now();
+    await client.save({ validateBeforeSave: false });
+
+    // Send OTP via SMS
+    console.log(`📱 Sending login OTP to ${client.phone}...`);
+    const smsResult = await OTPService.sendSMS(client.phone, otp);
+    console.log('SMS Result:', smsResult);
+    
+    if (!smsResult.success && !smsResult.devMode) {
+      // SMS failed, clear OTP
+      console.error('❌ Failed to send login OTP');
+      client.otpCode = undefined;
+      client.otpExpires = undefined;
+      await client.save({ validateBeforeSave: false });
+      
+      return next(new AppError('Failed to send OTP. Please try again or contact support.', 500));
+    }
+    
+    console.log('✅ Login OTP sent successfully');
+
+    return res.status(200).json({
+      status: 'otp_required',
+      message: 'OTP sent to your registered phone number',
+      email: client.contact_email,
+      maskedPhone: OTPService.maskPhone(client.phone),
+      expiresIn: process.env.OTP_EXPIRY_MINUTES || 5
+    });
+  }
+
+  // 4) If 2FA not enabled, log in normally
   createSendToken(client, 200, res);
 });
 
@@ -401,12 +483,29 @@ exports.verifyResetOTP = catchAsync(async (req, res, next) => {
   }
 
   // 4) Verify OTP
-  if (!OTPService.verifyOTP(otpCode, user.otpCode)) {
-    user.otpAttempts += 1;
-    await user.save({ validateBeforeSave: false });
-    
-    const attemptsLeft = 3 - user.otpAttempts;
-    return next(new AppError(`Invalid OTP. ${attemptsLeft} ${attemptsLeft === 1 ? 'attempt' : 'attempts'} remaining.`, 401));
+  const isValid = OTPService.verifyOTP(otpCode, user.otpCode, user.otpExpires, user.otpAttempts);
+  
+  if (!isValid.valid) {
+    if (isValid.reason === 'invalid') {
+      user.otpAttempts += 1;
+      await user.save({ validateBeforeSave: false });
+      
+      const attemptsLeft = 3 - user.otpAttempts;
+      return next(new AppError(`Invalid OTP. ${attemptsLeft} ${attemptsLeft === 1 ? 'attempt' : 'attempts'} remaining.`, 401));
+    } else if (isValid.reason === 'expired') {
+      user.otpCode = undefined;
+      user.otpExpires = undefined;
+      user.otpAttempts = 0;
+      await user.save({ validateBeforeSave: false });
+      return next(new AppError('OTP has expired. Please request a new one.', 400));
+    } else if (isValid.reason === 'attempts') {
+      user.otpCode = undefined;
+      user.otpExpires = undefined;
+      user.otpAttempts = 0;
+      await user.save({ validateBeforeSave: false });
+      return next(new AppError('Too many invalid attempts. Please request a new OTP.', 429));
+    }
+    return next(new AppError('Invalid OTP', 401));
   }
 
   // 5) OTP is valid - generate password reset token
@@ -426,4 +525,85 @@ exports.verifyResetOTP = catchAsync(async (req, res, next) => {
     resetToken,
     userType // Frontend needs this to know which endpoint to call for password reset
   });
+});
+
+// Verify OTP for 2FA login
+exports.verifyLoginOTP = catchAsync(async (req, res, next) => {
+  const { email, otpCode } = req.body;
+
+  if (!email || !otpCode) {
+    return next(new AppError('Please provide email and OTP code', 400));
+  }
+
+  // 1) Find user by email (check Employee or Client)
+  let user = await Employee.findOne({ email }).select('+otpCode');
+  
+  if (!user) {
+    user = await Client.findOne({ contact_email: email }).select('+otpCode');
+  }
+
+  if (!user) {
+    return next(new AppError('Invalid request', 400));
+  }
+
+  // 2) Check if OTP exists and hasn't expired
+  if (!user.otpCode || !user.otpExpires) {
+    return next(new AppError('No OTP request found. Please login again.', 400));
+  }
+
+  if (OTPService.isExpired(user.otpExpires)) {
+    // Clear expired OTP
+    user.otpCode = undefined;
+    user.otpExpires = undefined;
+    user.otpAttempts = 0;
+    await user.save({ validateBeforeSave: false });
+    
+    return next(new AppError('OTP has expired. Please login again.', 400));
+  }
+
+  // 3) Check attempts (max 3)
+  if (user.otpAttempts >= 3) {
+    // Clear OTP after too many attempts
+    user.otpCode = undefined;
+    user.otpExpires = undefined;
+    user.otpAttempts = 0;
+    await user.save({ validateBeforeSave: false });
+    
+    return next(new AppError('Too many invalid attempts. Please login again.', 429));
+  }
+
+  // 4) Verify OTP
+  const isValid = OTPService.verifyOTP(otpCode, user.otpCode, user.otpExpires, user.otpAttempts);
+  
+  if (!isValid.valid) {
+    if (isValid.reason === 'invalid') {
+      user.otpAttempts += 1;
+      await user.save({ validateBeforeSave: false });
+      
+      const attemptsLeft = 3 - user.otpAttempts;
+      return next(new AppError(`Invalid OTP. ${attemptsLeft} ${attemptsLeft === 1 ? 'attempt' : 'attempts'} remaining.`, 401));
+    } else if (isValid.reason === 'expired') {
+      user.otpCode = undefined;
+      user.otpExpires = undefined;
+      user.otpAttempts = 0;
+      await user.save({ validateBeforeSave: false });
+      return next(new AppError('OTP has expired. Please login again.', 400));
+    } else if (isValid.reason === 'attempts') {
+      user.otpCode = undefined;
+      user.otpExpires = undefined;
+      user.otpAttempts = 0;
+      await user.save({ validateBeforeSave: false });
+      return next(new AppError('Too many invalid attempts. Please login again.', 429));
+    }
+    return next(new AppError('Invalid OTP', 401));
+  }
+
+  // 5) OTP is valid - clear OTP and log user in
+  user.otpCode = undefined;
+  user.otpExpires = undefined;
+  user.otpAttempts = 0;
+  await user.save({ validateBeforeSave: false });
+
+  // 6) Log the user in, send JWT
+  createSendToken(user, 200, res);
 });

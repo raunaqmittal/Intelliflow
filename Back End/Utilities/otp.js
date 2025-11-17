@@ -73,12 +73,33 @@ class OTPService {
    * Verify OTP by comparing hashed versions
    * @param {string} providedOTP - OTP provided by user
    * @param {string} storedHashedOTP - Hashed OTP from database
-   * @returns {boolean} True if OTP matches
+   * @param {Date} otpExpires - Expiry timestamp from database
+   * @param {number} otpAttempts - Number of failed attempts
+   * @returns {object} Validation result with valid flag and reason
    */
-  static verifyOTP(providedOTP, storedHashedOTP) {
-    if (!providedOTP || !storedHashedOTP) return false;
+  static verifyOTP(providedOTP, storedHashedOTP, otpExpires, otpAttempts) {
+    // Check if OTP exists
+    if (!providedOTP || !storedHashedOTP) {
+      return { valid: false, reason: 'missing' };
+    }
+
+    // Check if expired
+    if (otpExpires && Date.now() > new Date(otpExpires).getTime()) {
+      return { valid: false, reason: 'expired' };
+    }
+
+    // Check if too many attempts (max 3)
+    if (otpAttempts !== undefined && otpAttempts >= 3) {
+      return { valid: false, reason: 'attempts' };
+    }
+
+    // Verify OTP hash
     const hashedProvided = this.hashOTP(providedOTP);
-    return hashedProvided === storedHashedOTP;
+    if (hashedProvided !== storedHashedOTP) {
+      return { valid: false, reason: 'invalid' };
+    }
+
+    return { valid: true };
   }
 
   /**

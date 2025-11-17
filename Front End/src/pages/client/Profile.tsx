@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Edit3, Mail, Building, Save, X, Phone, MapPin, Briefcase } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Edit3, Mail, Building, Save, X, Phone, MapPin, Briefcase, Shield, Smartphone } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,15 +15,23 @@ type ClientProfile = {
   client_name: string;
   contact_email: string;
   phone?: string;
+  phoneVerified?: boolean;
+  twoFactorEnabled?: boolean;
   industry?: string;
   address?: string;
 };
 
 export default function Profile() {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editForm, setEditForm] = useState<Partial<ClientProfile>>({});
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [isTogglingTwoFactor, setIsTogglingTwoFactor] = useState(false);
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
+  const [showOTPInput, setShowOTPInput] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -32,6 +41,7 @@ export default function Profile() {
         const client: ClientProfile = res.data?.data?.client || null;
         setProfile(client);
         setEditForm(client || {});
+        setTwoFactorEnabled(client?.twoFactorEnabled || false);
       } catch (error) {
         console.error('Error fetching profile:', error);
         toast({
@@ -55,10 +65,13 @@ export default function Profile() {
       });
       const updated: ClientProfile = res.data?.data?.client;
       setProfile(updated);
+      setTwoFactorEnabled(updated?.twoFactorEnabled || false);
       setIsEditing(false);
       toast({
         title: "Profile Updated",
-        description: "Your profile information has been successfully updated.",
+        description: updated?.phoneVerified === false && profile?.phone !== editForm.phone
+          ? "Phone number updated. Please verify your new number."
+          : "Your profile information has been successfully updated.",
       });
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -73,6 +86,111 @@ export default function Profile() {
   const handleCancel = () => {
     setEditForm(profile || {});
     setIsEditing(false);
+  };
+
+  const handleToggleTwoFactor = async () => {
+    if (!profile) return;
+
+    // Check if phone exists and is verified before enabling
+    if (!twoFactorEnabled) {
+      if (!profile.phone) {
+        toast({
+          title: "Phone Number Required",
+          description: "Please add your phone number before enabling 2FA.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!profile.phoneVerified) {
+        toast({
+          title: "Phone Verification Required",
+          description: "Please verify your phone number before enabling 2FA.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setIsTogglingTwoFactor(true);
+    try {
+      await api.patch('/clients/updateMe', {
+        twoFactorEnabled: !twoFactorEnabled
+      });
+      
+      setTwoFactorEnabled(!twoFactorEnabled);
+      setProfile({ ...profile, twoFactorEnabled: !twoFactorEnabled });
+      toast({
+        title: twoFactorEnabled ? "2FA Disabled" : "2FA Enabled",
+        description: twoFactorEnabled 
+          ? "Two-factor authentication has been disabled." 
+          : "Two-factor authentication is now active. You'll receive an OTP when logging in.",
+      });
+    } catch (error: any) {
+      console.error('Error toggling 2FA:', error);
+      toast({
+        title: "Update Failed",
+        description: error.response?.data?.message || "Failed to update 2FA settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTogglingTwoFactor(false);
+    }
+  };
+
+  const handleSendVerificationOTP = async () => {
+    setIsVerifyingPhone(true);
+    try {
+      const res = await api.post('/clients/send-phone-verification-otp');
+      setShowOTPInput(true);
+      toast({
+        title: "Verification Code Sent",
+        description: res.data.message || "Please check your phone for the verification code.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to Send Code",
+        description: error.response?.data?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifyingPhone(false);
+    }
+  };
+
+  const handleVerifyPhone = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      toast({
+        title: "Invalid Code",
+        description: "Please enter a valid 6-digit verification code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifyingPhone(true);
+    try {
+      await api.post('/clients/verify-phone', { otp: otpCode });
+      setShowOTPInput(false);
+      setOtpCode('');
+      
+      // Refresh profile data
+      const res = await api.get('/clients/me');
+      const updatedClient = res.data?.data?.client;
+      setProfile(updatedClient);
+      
+      toast({
+        title: "Phone Verified",
+        description: "Your phone number has been verified successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Verification Failed",
+        description: error.response?.data?.message || "Invalid code. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifyingPhone(false);
+    }
   };
 
   if (loading) {
@@ -198,6 +316,108 @@ export default function Profile() {
                   <span className="font-medium">{profile.address}</span>
                 </div>
               )}
+
+              {/* Security Settings - 2FA */}
+              <div className="mt-6 pt-6 border-t">
+                <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4">
+                  <Shield className="w-4 h-4" />
+                  Security Settings
+                </h3>
+                <div className="space-y-3">
+                {/* Phone Verification */}
+                {profile.phone && !profile.phoneVerified && (
+                  <div className="p-4 border rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800">
+                    <div className="flex items-start gap-3">
+                      <Smartphone className="w-5 h-5 text-yellow-600 dark:text-yellow-500 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-medium text-foreground">Verify Phone Number</div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {profile.phone} • Not verified
+                        </p>
+                        {!showOTPInput ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSendVerificationOTP}
+                            disabled={isVerifyingPhone}
+                            className="mt-3"
+                          >
+                            {isVerifyingPhone ? 'Sending...' : 'Send Verification Code'}
+                          </Button>
+                        ) : (
+                          <div className="mt-3 space-y-2">
+                            <Input
+                              type="text"
+                              placeholder="Enter 6-digit code"
+                              value={otpCode}
+                              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              maxLength={6}
+                              className="max-w-[200px]"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={handleVerifyPhone}
+                                disabled={isVerifyingPhone || otpCode.length !== 6}
+                              >
+                                {isVerifyingPhone ? 'Verifying...' : 'Verify'}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => { setShowOTPInput(false); setOtpCode(''); }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* 2FA Toggle */}
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-start gap-3 flex-1">
+                    <Smartphone className="w-5 h-5 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-medium text-foreground">Two-Factor Authentication</div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {twoFactorEnabled 
+                          ? `Enabled via SMS to ${profile.phone || 'your phone'}`
+                          : 'Add an extra layer of security to your account'}
+                      </p>
+                      {!profile.phone && (
+                        <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                          ⚠️ Please add your phone number to enable 2FA
+                        </p>
+                      )}
+                      {profile.phone && !profile.phoneVerified && (
+                        <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                          ⚠️ Please verify your phone number above to enable 2FA
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant={twoFactorEnabled ? "destructive" : "default"}
+                    size="sm"
+                    onClick={handleToggleTwoFactor}
+                    disabled={isTogglingTwoFactor}
+                    className="ml-4"
+                  >
+                    {isTogglingTwoFactor ? 'Updating...' : twoFactorEnabled ? 'Disable' : 'Enable'}
+                  </Button>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => navigate('/client/change-password')}
+                >
+                  Change Password
+                </Button>
+                </div>
+              </div>
             </>
           )}
         </CardContent>

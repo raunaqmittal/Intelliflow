@@ -1,6 +1,7 @@
 const Employee = require('../models/employeeModel');
 const catchAsync = require('../Utilities/catchAsync');
 const AppError = require('../Utilities/appError');
+const OTPService = require('../Utilities/otp');
 
 const filterObj = (obj, ...allowedFields) => {
   const newObj = {};
@@ -158,16 +159,158 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   if (req.body.password || req.body.passwordConfirm) {
     return next(new AppError('This route is not for password updates. Please use /updateMyPassword.', 400));
   }
-  const filteredBody = filterObj(req.body, 'name', 'email', 'availability', 'phone');
+  
+  const filteredBody = filterObj(req.body, 'name', 'email', 'availability', 'phone', 'twoFactorEnabled', 'twoFactorMethod');
+  
+  // If phone is being updated, reset phoneVerified and disable 2FA
+  if (filteredBody.phone) {
+    const employee = await Employee.findById(req.user.id);
+    
+    if (employee.phone !== filteredBody.phone) {
+      filteredBody.phoneVerified = false;
+      filteredBody.twoFactorEnabled = false; // Disable 2FA until new number is verified
+      // Clear any existing OTP data
+      filteredBody.otpCode = undefined;
+      filteredBody.otpExpires = undefined;
+      filteredBody.otpAttempts = 0;
+      filteredBody.otpLastSent = undefined;
+    }
+  }
+  
+  // Validate 2FA requirements
+  if (req.body.twoFactorEnabled === true) {
+    const employee = await Employee.findById(req.user.id);
+    
+    // Check if phone exists (either in DB or being updated)
+    const phoneToUse = filteredBody.phone || employee.phone;
+    if (!phoneToUse) {
+      return next(new AppError('Please add a phone number before enabling 2FA', 400));
+    }
+    
+    // If phone is being changed, require verification of new number
+    if (filteredBody.phone && filteredBody.phone !== employee.phone) {
+      return next(new AppError('Please verify your new phone number before enabling 2FA', 400));
+    }
+    
+    // Always require phone verification for 2FA
+    if (!employee.phoneVerified) {
+      return next(new AppError('Please verify your phone number before enabling 2FA', 400));
+    }
+  }
+  
   const updatedEmployee = await Employee.findByIdAndUpdate(req.user.id, filteredBody, {
     new: true,
     runValidators: true
   });
+  
   res.status(200).json({
     status: 'success',
     data: {
       employee: updatedEmployee
     }
+  });
+});
+
+exports.sendPhoneVerificationOTP = catchAsync(async (req, res, next) => {
+  const employee = await Employee.findById(req.user.id);
+  
+  if (!employee.phone) {
+    return next(new AppError('Please add a phone number first', 400));
+  }
+
+  // Rate limiting check
+  if (!OTPService.canSendOTP(employee.otpLastSent)) {
+    return next(new AppError('Please wait before requesting another OTP', 429));
+  }
+
+  // Generate 6-digit OTP
+  const otp = OTPService.generateOTP();
+  
+  // Store hashed OTP in database
+  employee.otpCode = OTPService.hashOTP(otp);
+  employee.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
+  employee.otpAttempts = 0;
+  employee.otpLastSent = Date.now();
+  await employee.save({ validateBeforeSave: false });
+
+  // Send OTP via SMS
+  console.log(`📱 Sending phone verification OTP to ${employee.phone}...`);
+  const smsResult = await OTPService.sendSMS(employee.phone, otp);
+  console.log('SMS Result:', smsResult);
+  
+  if (!smsResult.success && !smsResult.devMode) {
+    console.error('❌ Failed to send phone verification OTP');
+    return next(new AppError('Failed to send verification code. Please try again.', 500));
+  }
+  
+  console.log('✅ Phone verification OTP sent successfully');
+
+  res.status(200).json({
+    status: 'success',
+    message: smsResult.devMode 
+      ? `Development mode: OTP is ${otp}` 
+      : 'Verification code sent to your phone',
+    devMode: smsResult.devMode,
+    maskedPhone: OTPService.maskPhone(employee.phone)
+  });
+});
+
+exports.verifyPhone = catchAsync(async (req, res, next) => {
+  const { otp } = req.body;
+
+  if (!otp) {
+    return next(new AppError('Please provide the verification code', 400));
+  }
+
+  const employee = await Employee.findById(req.user.id).select('+otpCode');
+
+  // Debug logging
+  console.log('📱 Phone Verification Debug:');
+  console.log('Provided OTP:', otp);
+  console.log('Stored OTP Hash:', employee.otpCode);
+  console.log('OTP Expires:', employee.otpExpires);
+  console.log('OTP Attempts:', employee.otpAttempts);
+
+  // Verify OTP
+  const isValid = OTPService.verifyOTP(
+    otp,
+    employee.otpCode,
+    employee.otpExpires,
+    employee.otpAttempts
+  );
+  
+  console.log('Validation Result:', isValid);
+
+  if (!isValid.valid) {
+    if (isValid.reason === 'expired') {
+      employee.otpCode = undefined;
+      employee.otpExpires = undefined;
+      employee.otpAttempts = 0;
+      await employee.save({ validateBeforeSave: false });
+      return next(new AppError('Verification code has expired. Please request a new one.', 400));
+    } else if (isValid.reason === 'attempts') {
+      employee.otpCode = undefined;
+      employee.otpExpires = undefined;
+      employee.otpAttempts = 0;
+      await employee.save({ validateBeforeSave: false });
+      return next(new AppError('Too many incorrect attempts. Please request a new code.', 400));
+    } else {
+      employee.otpAttempts += 1;
+      await employee.save({ validateBeforeSave: false });
+      return next(new AppError('Invalid verification code', 400));
+    }
+  }
+
+  // OTP is valid - mark phone as verified
+  employee.phoneVerified = true;
+  employee.otpCode = undefined;
+  employee.otpExpires = undefined;
+  employee.otpAttempts = 0;
+  await employee.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Phone number verified successfully'
   });
 });
 

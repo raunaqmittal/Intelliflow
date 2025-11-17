@@ -52,7 +52,15 @@ interface RequestDetailsModel {
     estimatedDuration?: number;
     taskBreakdown: WorkflowTask[];
   };
-  approvalsByDepartment?: Array<{ department: string; approved: boolean; approvedBy?: { name?: string } | string; approvedAt?: string }>;
+  approvalsByDepartment?: Array<{ 
+    department: string; 
+    approved: boolean; 
+    rejected?: boolean;
+    approvedBy?: { name?: string } | string; 
+    rejectedBy?: { name?: string } | string;
+    approvedAt?: string;
+    rejectedAt?: string;
+  }>;
   requiredDepartments?: string[];
 }
 
@@ -251,20 +259,20 @@ export default function ManagerRequestDetails() {
     if (!id || !data) return;
     setBusy(true);
     try {
-      // Determine which of my departments is pending
-      const pending = (data.approvalsByDepartment || [])
+      // Determine which of my departments can be approved (pending or rejected)
+      const approvable = (data.approvalsByDepartment || [])
         .filter(d => !d.approved)
         .map(d => d.department);
-      const myPending = pending.filter(d => managerCanActForTeam(d));
+      const myApprovable = approvable.filter(d => managerCanActForTeam(d));
       // If multiple, use selected dropdown value
       let body: Record<string, string> | undefined = undefined;
-      if (myPending.length > 1) {
-        const chosen = deptToApprove || myPending[0];
+      if (myApprovable.length > 1) {
+        const chosen = deptToApprove || myApprovable[0];
         body = { department: chosen };
-      } else if (myPending.length === 1) {
-        body = { department: myPending[0] };
+      } else if (myApprovable.length === 1) {
+        body = { department: myApprovable[0] };
       } else {
-        toast({ title: 'No pending department to approve for you', variant: 'destructive' });
+        toast({ title: 'No department available to approve for you', variant: 'destructive' });
         return;
       }
       await api.post(`/requests/${id}/department-approve`, body);
@@ -273,6 +281,38 @@ export default function ManagerRequestDetails() {
     } catch (e: unknown) {
       const axiosErr = e as { response?: { data?: { message?: string } } };
       const msg = axiosErr?.response?.data?.message || 'Failed to approve department';
+      toast({ title: 'Action failed', description: msg, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const rejectMyDepartment = async () => {
+    if (!id || !data) return;
+    setBusy(true);
+    try {
+      // Determine which of my departments I can act on
+      const actionable = (data.approvalsByDepartment || [])
+        .filter(d => !d.rejected)
+        .map(d => d.department);
+      const myActionable = actionable.filter(d => managerCanActForTeam(d));
+      // If multiple, use selected dropdown value
+      let body: Record<string, string> | undefined = undefined;
+      if (myActionable.length > 1) {
+        const chosen = deptToApprove || myActionable[0];
+        body = { department: chosen };
+      } else if (myActionable.length === 1) {
+        body = { department: myActionable[0] };
+      } else {
+        toast({ title: 'No department available to reject for you', variant: 'destructive' });
+        return;
+      }
+      await api.post(`/requests/${id}/department-reject`, body);
+      toast({ title: 'Department rejected' });
+      await load();
+    } catch (e: unknown) {
+      const axiosErr = e as { response?: { data?: { message?: string } } };
+      const msg = axiosErr?.response?.data?.message || 'Failed to reject department';
       toast({ title: 'Action failed', description: msg, variant: 'destructive' });
     } finally {
       setBusy(false);
@@ -326,10 +366,17 @@ export default function ManagerRequestDetails() {
   const canApprove = (data.status === 'workflow_generated' || data.status === 'under_review') && allDeptsApproved && allTasksAssigned;
   const canReject = canApprove || data.status === 'submitted';
   const myPendingDepts = (data.approvalsByDepartment || [])
+    .filter(d => !d.approved && !d.rejected && managerCanActForTeam(d.department))
+    .map(d => d.department);
+  const myRejectedDepts = (data.approvalsByDepartment || [])
+    .filter(d => d.rejected && !d.approved && managerCanActForTeam(d.department))
+    .map(d => d.department);
+  const myActionableDepts = (data.approvalsByDepartment || [])
     .filter(d => !d.approved && managerCanActForTeam(d.department))
     .map(d => d.department);
-  const canDeptApprove = userRole === 'manager' && hasWorkflow && myPendingDepts.length > 0;
-  const pendingDepts = (data.approvalsByDepartment || []).filter(d => !d.approved).map(d => d.department);
+  const canDeptApprove = userRole === 'manager' && hasWorkflow && (myPendingDepts.length > 0 || myRejectedDepts.length > 0);
+  const canDeptReject = userRole === 'manager' && hasWorkflow && myActionableDepts.length > 0;
+  const pendingDepts = (data.approvalsByDepartment || []).filter(d => !d.approved && !d.rejected).map(d => d.department);
   const unassignedTasks = (data.generatedWorkflow?.taskBreakdown || []).filter(t => !(t.assignedEmployees && t.assignedEmployees.length > 0));
 
   return (
@@ -394,13 +441,13 @@ export default function ManagerRequestDetails() {
             )}
             {canDeptApprove && (
               <div className="flex items-center gap-2">
-                {myPendingDepts.length > 1 && (
+                {(myPendingDepts.length + myRejectedDepts.length) > 1 && (
                   <Select onValueChange={(v) => setDeptToApprove(v)} defaultValue={deptToApprove}>
                     <SelectTrigger className="w-44">
                       <SelectValue placeholder="Choose department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {myPendingDepts.map((d) => (
+                      {[...myPendingDepts, ...myRejectedDepts].map((d) => (
                         <SelectItem key={d} value={d}>{d}</SelectItem>
                       ))}
                     </SelectContent>
@@ -408,6 +455,25 @@ export default function ManagerRequestDetails() {
                 )}
                 <Button variant="secondary" onClick={approveMyDepartment} disabled={busy}>
                   <CheckCircle2 className="h-4 w-4 mr-2" /> Approve My Department
+                </Button>
+              </div>
+            )}
+            {canDeptReject && (
+              <div className="flex items-center gap-2">
+                {myActionableDepts.length > 1 && !canDeptApprove && (
+                  <Select onValueChange={(v) => setDeptToApprove(v)} defaultValue={deptToApprove}>
+                    <SelectTrigger className="w-44">
+                      <SelectValue placeholder="Choose department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {myActionableDepts.map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Button variant="outline" onClick={rejectMyDepartment} disabled={busy}>
+                  <Ban className="h-4 w-4 mr-2" /> Reject My Department
                 </Button>
               </div>
             )}
@@ -449,8 +515,8 @@ export default function ManagerRequestDetails() {
                     <TableRow>
                       <TableHead>Department</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Approved By</TableHead>
-                      <TableHead>Approved At</TableHead>
+                      <TableHead>Remarked By</TableHead>
+                      <TableHead>Remarked At</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -458,12 +524,18 @@ export default function ManagerRequestDetails() {
                       <TableRow key={d.department}>
                         <TableCell className="font-medium">{d.department}</TableCell>
                         <TableCell>
-                          <Badge variant={d.approved ? 'default' : 'secondary'}>
-                            {d.approved ? 'Approved' : 'Pending'}
+                          <Badge variant={d.approved ? 'default' : d.rejected ? 'destructive' : 'secondary'}>
+                            {d.approved ? 'Approved' : d.rejected ? 'Rejected' : 'Pending'}
                           </Badge>
                         </TableCell>
-                        <TableCell>{typeof d.approvedBy === 'object' ? d.approvedBy?.name : ''}</TableCell>
-                        <TableCell>{d.approvedAt ? new Date(d.approvedAt).toLocaleString() : ''}</TableCell>
+                        <TableCell>
+                          {d.approved && typeof d.approvedBy === 'object' ? d.approvedBy?.name : ''}
+                          {d.rejected && typeof d.rejectedBy === 'object' ? d.rejectedBy?.name : ''}
+                        </TableCell>
+                        <TableCell>
+                          {d.approvedAt ? new Date(d.approvedAt).toLocaleString() : ''}
+                          {d.rejectedAt ? new Date(d.rejectedAt).toLocaleString() : ''}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

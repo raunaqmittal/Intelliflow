@@ -120,8 +120,31 @@ async function testClientPortal(){
       push('client_get_projects', true, 'No projects yet');
     }
 
-    // 9. Forgot Password
-    log('9. Forgot Password');
+    // 9. Send Phone Verification OTP
+    log('9. Send Phone Verification OTP');
+    const sendOtp = await axios.post(`${BASE_URL}/clients/send-phone-verification-otp`, {}, {
+      headers: { Authorization: `Bearer ${clientToken}` }
+    });
+    assert(sendOtp.data.status === 'success', 'Send phone OTP failed');
+    push('client_send_phone_otp', true, 'OTP sent');
+    log(`   📱 OTP sent to ${sendOtp.data.maskedPhone}`);
+
+    // 10. Test Verify Phone with Invalid OTP (negative test)
+    log('10. Verify Phone - Invalid OTP');
+    try {
+      await axios.post(`${BASE_URL}/clients/verify-phone`, {
+        otp: '000000'
+      }, {
+        headers: { Authorization: `Bearer ${clientToken}` }
+      });
+      push('client_verify_phone_invalid', false, 'Should have rejected invalid OTP');
+    } catch(err){
+      assert(err.response && err.response.status === 400, 'Expected 400 error for invalid OTP');
+      push('client_verify_phone_invalid', true, 'Correctly rejected invalid OTP');
+    }
+
+    // 11. Forgot Password
+    log('11. Forgot Password');
     const forgotPw = await axios.post(`${BASE_URL}/clients/forgotPassword`, {
       email: clientEmail
     });
@@ -132,8 +155,8 @@ async function testClientPortal(){
       log(`   📱 OTP sent to ${forgotPw.data.maskedPhone}`);
     }
 
-    // 10. Update Password
-    log('10. Update Password');
+    // 12. Update Password
+    log('12. Update Password');
     const updatePw = await axios.patch(`${BASE_URL}/clients/updateMyPassword`, {
       passwordCurrent: 'Client1234!',
       password: 'NewClient1234!',
@@ -230,8 +253,31 @@ async function testEmployeePortal(){
     assert(updateProfile.data.status === 'success', 'Employee profile update failed');
     push('employee_update_profile', true, 'Profile updated');
 
-    // 7. Forgot Password
-    log('7. Forgot Password');
+    // 7. Send Phone Verification OTP
+    log('7. Send Phone Verification OTP');
+    const sendOtp = await axios.post(`${BASE_URL}/employees/send-phone-verification-otp`, {}, {
+      headers: { Authorization: `Bearer ${employeeToken}` }
+    });
+    assert(sendOtp.data.status === 'success', 'Send phone OTP failed');
+    push('employee_send_phone_otp', true, 'OTP sent');
+    log(`   📱 OTP sent to ${sendOtp.data.maskedPhone}`);
+
+    // 8. Test Verify Phone with Invalid OTP (negative test)
+    log('8. Verify Phone - Invalid OTP');
+    try {
+      await axios.post(`${BASE_URL}/employees/verify-phone`, {
+        otp: '000000'
+      }, {
+        headers: { Authorization: `Bearer ${employeeToken}` }
+      });
+      push('employee_verify_phone_invalid', false, 'Should have rejected invalid OTP');
+    } catch(err){
+      assert(err.response && err.response.status === 400, 'Expected 400 error for invalid OTP');
+      push('employee_verify_phone_invalid', true, 'Correctly rejected invalid OTP');
+    }
+
+    // 9. Forgot Password
+    log('9. Forgot Password');
     const forgotPw = await axios.post(`${BASE_URL}/employees/forgotPassword`, {
       email: employeeEmail
     });
@@ -242,8 +288,8 @@ async function testEmployeePortal(){
       log(`   📱 OTP sent to ${forgotPw.data.maskedPhone}`);
     }
 
-    // 8. Update Password
-    log('8. Update Password');
+    // 10. Update Password
+    log('10. Update Password');
     const updatePw = await axios.patch(`${BASE_URL}/employees/updateMyPassword`, {
       passwordCurrent: 'Employee1234!',
       password: 'NewEmployee1234!',
@@ -513,8 +559,119 @@ async function testManagerPortal(){
     assert(updateProfile.data.status === 'success', 'Manager profile update failed');
     push('manager_update_profile', true, 'Profile updated');
 
-    // 19. Refresh Suggestions
-    log('19. Refresh Suggestions');
+    // 19. Send Phone Verification OTP (Manager)
+    log('19. Send Phone Verification OTP');
+    const sendOtp = await axios.post(`${BASE_URL}/employees/send-phone-verification-otp`, {}, {
+      headers: { Authorization: `Bearer ${managerToken}` }
+    });
+    assert(sendOtp.data.status === 'success', 'Send phone OTP failed');
+    push('manager_send_phone_otp', true, 'OTP sent');
+    log(`   📱 OTP sent to ${sendOtp.data.maskedPhone}`);
+
+    // 20. Test Verify Phone with Invalid OTP (negative test)
+    log('20. Verify Phone - Invalid OTP');
+    try {
+      await axios.post(`${BASE_URL}/employees/verify-phone`, {
+        otp: '000000'
+      }, {
+        headers: { Authorization: `Bearer ${managerToken}` }
+      });
+      push('manager_verify_phone_invalid', false, 'Should have rejected invalid OTP');
+    } catch(err){
+      assert(err.response && err.response.status === 400, 'Expected 400 error for invalid OTP');
+      push('manager_verify_phone_invalid', true, 'Correctly rejected invalid OTP');
+    }
+
+    // 21. Test Department Rejection
+    log('21. Test Department Rejection');
+    // Create a new request for testing department rejection
+    const testReqEmail = `dept.test.${unique}@example.com`;
+    const testClient = await axios.post(`${BASE_URL}/clients/signup`, {
+      client_id: unique % 1000000 + 8000000,
+      client_name: 'Department Test Client',
+      contact_email: testReqEmail,
+      phone: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+      password: 'Client1234!',
+      passwordConfirm: 'Client1234!'
+    });
+    const testClientToken = testClient.data.token;
+    
+    const testReq = await axios.post(`${BASE_URL}/requests`, {
+      requestType: 'web_dev',
+      title: 'Department Rejection Test',
+      description: 'Testing department rejection workflow',
+      requirements: ['Frontend', 'Backend', 'Testing']
+    }, {
+      headers: { Authorization: `Bearer ${testClientToken}` }
+    });
+    const testRequestId = testReq.data.data.request._id;
+
+    // Generate workflow
+    await axios.post(`${BASE_URL}/requests/${testRequestId}/generate-workflow`, {}, {
+      headers: { Authorization: `Bearer ${testClientToken}` }
+    });
+
+    // Get request to see departments
+    const testReqDetails = await axios.get(`${BASE_URL}/requests/${testRequestId}`, {
+      headers: { Authorization: `Bearer ${managerToken}` }
+    });
+    const testTaskBreakdown = testReqDetails.data.data.request.generatedWorkflow.taskBreakdown || [];
+    
+    // Assign employees
+    const testAssignments = {};
+    testTaskBreakdown.forEach(t => { testAssignments[t._id] = [managerId]; });
+    await axios.patch(`${BASE_URL}/requests/${testRequestId}/assign-employees`, 
+      { assignments: testAssignments },
+      { headers: { Authorization: `Bearer ${managerToken}` }}
+    );
+
+    // Approve one department first
+    await axios.post(`${BASE_URL}/requests/${testRequestId}/department-approve`,
+      { department: 'development' },
+      { headers: { Authorization: `Bearer ${managerToken}` }}
+    );
+    push('manager_dept_approve_for_reject_test', true, 'Development approved');
+
+    // Now reject that department
+    const rejectRes = await axios.post(`${BASE_URL}/requests/${testRequestId}/department-reject`,
+      { department: 'development' },
+      { headers: { Authorization: `Bearer ${managerToken}` }}
+    );
+    assert(rejectRes.data.status === 'success', 'Department rejection failed');
+    push('manager_department_reject', true, 'Development rejected');
+
+    // Verify rejection was recorded
+    const afterReject = await axios.get(`${BASE_URL}/requests/${testRequestId}`, {
+      headers: { Authorization: `Bearer ${managerToken}` }
+    });
+    const rejectedDept = afterReject.data.data.request.approvalsByDepartment.find(
+      d => d.department === 'Development'
+    );
+    assert(rejectedDept && rejectedDept.rejected === true, 'Rejection not recorded');
+    assert(rejectedDept.approved === false, 'Still marked as approved');
+    push('manager_verify_rejection', true, 'Rejection verified in database');
+
+    // 22. Test Re-approval After Rejection
+    log('22. Re-approval After Rejection');
+    const reApproveRes = await axios.post(`${BASE_URL}/requests/${testRequestId}/department-approve`,
+      { department: 'development' },
+      { headers: { Authorization: `Bearer ${managerToken}` }}
+    );
+    assert(reApproveRes.data.status === 'success', 'Re-approval after rejection failed');
+    
+    // Verify re-approval cleared rejection
+    const afterReapprove = await axios.get(`${BASE_URL}/requests/${testRequestId}`, {
+      headers: { Authorization: `Bearer ${managerToken}` }
+    });
+    const reapprovedDept = afterReapprove.data.data.request.approvalsByDepartment.find(
+      d => d.department === 'Development'
+    );
+    assert(reapprovedDept.approved === true, 'Re-approval not recorded');
+    assert(reapprovedDept.rejected === false, 'Rejection not cleared');
+    push('manager_reapprove_after_reject', true, 'Re-approval successful');
+
+    // 23. Refresh Suggestions
+    log('23. Refresh Suggestions');
     try {
       await axios.post(`${BASE_URL}/requests/${requestId}/refresh-suggestions`, {},
         { headers: { Authorization: `Bearer ${managerToken}` }}

@@ -76,6 +76,14 @@ exports.getRequest = catchAsync(async (req, res, next) => {
       path: 'generatedWorkflow.taskBreakdown.suggestedEmployees.employee',
       select: 'name email role department skills availability'
     })
+    .populate({
+      path: 'approvalsByDepartment.approvedBy',
+      select: 'name email role department'
+    })
+    .populate({
+      path: 'approvalsByDepartment.rejectedBy',
+      select: 'name email role department'
+    })
     .populate('convertedToProject');
 
   if (!request) {
@@ -715,13 +723,13 @@ exports.departmentApprove = catchAsync(async (req, res, next) => {
   if (idx === -1) {
     return next(new AppError('Department not required for this request', 400));
   }
-  if (request.approvalsByDepartment[idx].approved) {
-    return next(new AppError('This department has already been approved', 400));
-  }
 
   request.approvalsByDepartment[idx].approved = true;
+  request.approvalsByDepartment[idx].rejected = false;
   request.approvalsByDepartment[idx].approvedBy = user._id;
   request.approvalsByDepartment[idx].approvedAt = new Date();
+  request.approvalsByDepartment[idx].rejectedBy = undefined;
+  request.approvalsByDepartment[idx].rejectedAt = undefined;
 
   // Move status to under_review if not already
   if (request.status === 'workflow_generated') {
@@ -731,6 +739,95 @@ exports.departmentApprove = catchAsync(async (req, res, next) => {
 
   await request.populate({
     path: 'approvalsByDepartment.approvedBy',
+    select: 'name email role department'
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      approvalsByDepartment: request.approvalsByDepartment
+    }
+  });
+});
+
+// Department-level reject (Managers only; must be manager of that department)
+exports.departmentReject = catchAsync(async (req, res, next) => {
+  const request = await Request.findById(req.params.id).populate('client');
+
+  if (!request) {
+    return next(new AppError('No request found with that ID', 404));
+  }
+
+  if (!request.generatedWorkflow) {
+    return next(new AppError('No workflow to reject for this request. Generate workflow first.', 400));
+  }
+
+  // Ensure caller is authorized: must be an employee with role 'manager'
+  const user = req.user;
+  const isEmployee = !!user && (user.employee_id !== undefined && user.employee_id !== null);
+  const isManager = !!user && user.role === 'manager';
+  if (!(isEmployee && isManager)) {
+    return next(new AppError('You are not authorized to reject departments for this request', 403));
+  }
+
+  // Managers can only reject departments they manage per approvesDepartments
+  const userDeptsRaw = Array.isArray(user.approvesDepartments) ? user.approvesDepartments : [];
+  const userDepts = expandList(userDeptsRaw);
+  const userSet = new Set(userDepts);
+  const allEntries = (Array.isArray(request.approvalsByDepartment) ? request.approvalsByDepartment : [])
+    .map(e => ({ ...e, _norm: normalizeDept(e.department) }));
+  const allDepts = new Set(allEntries.map(e => e._norm));
+
+  // Determine target department
+  let targetDept = req.body && req.body.department ? req.body.department : undefined;
+  const eligibleDepts = userDepts.filter(d => allDepts.has(d));
+
+  if (!targetDept) {
+    if (eligibleDepts.length === 0) {
+      return next(new AppError('No departments match your approval permissions', 403));
+    }
+    if (eligibleDepts.length > 1) {
+      return next(new AppError(`Multiple departments match your permissions: ${eligibleDepts.join(', ')}. Specify 'department' in request body.`, 400));
+    }
+    targetDept = eligibleDepts[0];
+  } else {
+    const targetKeys = new Set(expandAliases(targetDept));
+    const authorized = Array.from(targetKeys).some(k => userSet.has(k));
+    if (!authorized) {
+      return next(new AppError('You are not authorized to reject for this department', 403));
+    }
+    const isRequired = Array.from(targetKeys).some(k => allDepts.has(k));
+    if (!isRequired) {
+      return next(new AppError('This department is not required for this request', 400));
+    }
+  }
+
+  // Mark rejected
+  const targetKeys = new Set(expandAliases(targetDept));
+  const idx = request.approvalsByDepartment.findIndex(e => {
+    const entryKeys = new Set(expandAliases(e.department));
+    for (const k of targetKeys) if (entryKeys.has(k)) return true;
+    return false;
+  });
+  if (idx === -1) {
+    return next(new AppError('Department not required for this request', 400));
+  }
+
+  request.approvalsByDepartment[idx].rejected = true;
+  request.approvalsByDepartment[idx].approved = false;
+  request.approvalsByDepartment[idx].rejectedBy = user._id;
+  request.approvalsByDepartment[idx].rejectedAt = new Date();
+  request.approvalsByDepartment[idx].approvedBy = undefined;
+  request.approvalsByDepartment[idx].approvedAt = undefined;
+
+  // Move status to under_review if not already
+  if (request.status === 'workflow_generated') {
+    request.status = 'under_review';
+  }
+  await request.save();
+
+  await request.populate({
+    path: 'approvalsByDepartment.rejectedBy',
     select: 'name email role department'
   });
 

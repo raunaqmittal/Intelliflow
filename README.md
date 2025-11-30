@@ -62,6 +62,7 @@ Intelliflow — Integrated Workflow OS for Cross‑Functional Teams
 
 Intelliflow includes practical protections out of the box to reduce common attack surface while keeping development friction low.
 
+
 ### Web & API Hardening
 
 - **Security headers (Helmet):** Adds industry‑standard headers that help guard against clickjacking, MIME sniffing, and other browser attack vectors.

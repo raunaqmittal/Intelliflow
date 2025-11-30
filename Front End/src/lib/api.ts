@@ -12,7 +12,14 @@ export const api = axios.create({
 // Note: Moving to httpOnly cookies for better security, but keeping token for backward compatibility
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
-  if (token) {
+  
+  // Don't send token for login/signup endpoints to prevent conflicts
+  const isAuthEndpoint = config.url?.includes('/login') || 
+                         config.url?.includes('/signup') ||
+                         config.url?.includes('/forgotPassword') ||
+                         config.url?.includes('/resetPassword');
+  
+  if (token && !isAuthEndpoint) {
     if (!config.headers) {
       config.headers = new AxiosHeaders();
     }

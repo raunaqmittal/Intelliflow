@@ -39,7 +39,7 @@ const clientSchema = new mongoose.Schema({
   },
   phoneVerified: {
     type: Boolean,
-    default: false
+    default: false // Must verify phone before enabling 2FA
   },
   // Two-Factor Authentication
   twoFactorEnabled: {

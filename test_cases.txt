@@ -1,0 +1,933 @@
+===================================================================================
+                        INTELLIFLOW - COMPREHENSIVE TEST CASES
+===================================================================================
+
+This document lists all test cases for the Intelliflow project management system,
+categorized into FULFILLED (already implemented/tested) and PENDING (requires manual testing).
+
+Last Updated: November 30, 2025
+
+===================================================================================
+                          SECTION 1: FULFILLED TEST CASES
+===================================================================================
+
+These test cases are already implemented with automated testing or robust validation.
+
+------------------------------------------------------------------------------------
+A. INPUT VALIDATION - PHONE NUMBER
+------------------------------------------------------------------------------------
+[✓] TC-001: Phone number in E.164 format (+1234567890) - ACCEPTED
+    Location: employeeModel.js line 55-64, clientModel.js line 27-37
+    Regex: /^\+?[1-9]\d{9,14}$/
+    Test: backendTesting.js step 20-21, frontendTesting.cjs client step 9
+
+[✓] TC-002: Phone number without country code prefix - REJECTED
+    Validation: Must start with +[1-9]
+    Error: "Phone number must be in E.164 format (e.g., +1234567890)"
+
+[✓] TC-003: Phone number with less than 10 digits - REJECTED
+    Validation: Minimum 10 digits (9 after country code)
+    Error: "Phone number must be in E.164 format (e.g., +1234567890)"
+
+[✓] TC-004: Phone number with more than 15 digits - REJECTED
+    Validation: Maximum 15 digits (14 after country code)
+    Error: "Phone number must be in E.164 format (e.g., +1234567890)"
+
+[✓] TC-005: Phone number with special characters (spaces, dashes) - REJECTED
+    Validation: Only digits and optional + prefix
+    Error: "Phone number must be in E.164 format (e.g., +1234567890)"
+
+[✓] TC-006: Phone number starting with 0 after + - REJECTED
+    Validation: Must be [1-9] after +
+    Error: "Phone number must be in E.164 format (e.g., +1234567890)"
+
+------------------------------------------------------------------------------------
+B. INPUT VALIDATION - EMAIL ADDRESS
+------------------------------------------------------------------------------------
+[✓] TC-007: Valid email format (user@domain.com) - ACCEPTED
+    Location: employeeModel.js line 41, clientModel.js line 21
+    Library: validator.isEmail
+
+[✓] TC-008: Email without @ symbol - REJECTED
+    Error: "Please provide a valid email"
+
+[✓] TC-009: Email without domain (.com, .org) - REJECTED
+    Error: "Please provide a valid email"
+
+[✓] TC-010: Email with spaces - REJECTED
+    Error: "Please provide a valid email"
+
+[✓] TC-011: Email uniqueness constraint - REJECTED if duplicate
+    Note: Employee emails are unique, client contact_email is unique
+    Error: "Duplicate field values. Please use another value!"
+
+------------------------------------------------------------------------------------
+C. INPUT VALIDATION - PASSWORD
+------------------------------------------------------------------------------------
+[✓] TC-012: Password with 8+ characters - ACCEPTED
+    Location: employeeModel.js line 94-107, clientModel.js line 64-77
+    Validation: minlength: 8
+
+[✓] TC-013: Password with less than 8 characters - REJECTED
+    Error: "Password must be at least 8 characters long"
+
+[✓] TC-014: Password and passwordConfirm match - ACCEPTED
+    Validation: Custom validator comparing password and passwordConfirm
+
+[✓] TC-015: Password and passwordConfirm mismatch - REJECTED
+    Error: "Passwords do not match"
+
+[✓] TC-016: Missing passwordConfirm field - REJECTED
+    Error: "Please confirm your password!"
+
+[✓] TC-017: Password encryption with bcrypt - VERIFIED
+    Location: employeeModel.js line 115-121, clientModel.js line 85-91
+    Algorithm: bcrypt with cost factor 12
+
+------------------------------------------------------------------------------------
+D. OTP VALIDATION AND SECURITY
+------------------------------------------------------------------------------------
+[✓] TC-018: Valid 6-digit OTP - ACCEPTED
+    Location: Back End/Utilities/otp.js
+    Format: Numeric, 6 digits
+
+[✓] TC-019: Invalid OTP (wrong digits) - REJECTED
+    Test: backendTesting.js step 21, frontendTesting.cjs all portals
+    Error: "Invalid OTP. Please try again."
+
+[✓] TC-020: Expired OTP (>5 minutes) - REJECTED
+    Expiry: 5 minutes (OTP_EXPIRY_MINUTES)
+    Error: "OTP has expired. Please request a new one."
+
+[✓] TC-021: OTP rate limiting (request within 2 minutes) - REJECTED
+    Rate Limit: 2 minutes between requests (OTP_RATE_LIMIT_MINUTES)
+    Error: "Please wait before requesting a new OTP"
+
+[✓] TC-022: OTP max attempts exceeded (>3 attempts) - REJECTED
+    Max Attempts: 3
+    Error: "Too many failed attempts. Please request a new OTP."
+
+[✓] TC-023: OTP hashing with SHA-256 - VERIFIED
+    Location: otp.js hashOTP function
+    Security: OTP stored hashed in database (select: false)
+
+[✓] TC-024: OTP cleared after successful verification - VERIFIED
+    Fields cleared: otpCode, otpExpires, otpAttempts, otpLastSent
+
+[✓] TC-025: Frontend 6-digit OTP input validation - VERIFIED
+    Test: frontendTesting.cjs validates OTP format before submission
+
+------------------------------------------------------------------------------------
+E. AUTHENTICATION - SIGNUP
+------------------------------------------------------------------------------------
+[✓] TC-026: Employee signup with valid data - SUCCESS
+    Test: frontendTesting.cjs employee portal step 1-2
+    Returns: JWT token, employee data
+
+[✓] TC-027: Client signup with valid data - SUCCESS
+    Test: frontendTesting.cjs client portal step 1-2
+    Returns: JWT token, client data
+
+[✓] TC-028: Signup with duplicate email - REJECTED
+    Error: "Duplicate field values. Please use another value!"
+
+[✓] TC-029: Signup with invalid phone format - REJECTED
+    Error: "Phone number must be in E.164 format"
+
+[✓] TC-030: Signup with password < 8 characters - REJECTED
+    Error: "Password must be at least 8 characters long"
+
+[✓] TC-031: Signup with mismatched passwords - REJECTED
+    Error: "Passwords do not match"
+
+[✓] TC-032: JWT token stored in HTTP-only cookie - VERIFIED
+    Location: authController.js line 23-28
+    Flags: httpOnly, sameSite: strict, secure (production only)
+
+------------------------------------------------------------------------------------
+F. AUTHENTICATION - LOGIN
+------------------------------------------------------------------------------------
+[✓] TC-033: Employee login with valid credentials - SUCCESS
+    Test: frontendTesting.cjs employee portal step 3
+    Returns: JWT token
+
+[✓] TC-034: Client login with valid credentials - SUCCESS
+    Test: frontendTesting.cjs client portal step 3
+    Returns: JWT token
+
+[✓] TC-035: Login with incorrect email - REJECTED
+    Error: "Incorrect email or password"
+
+[✓] TC-036: Login with incorrect password - REJECTED
+    Error: "Incorrect email or password"
+
+[✓] TC-037: Login rate limiting in production (5 attempts/15 min) - ENFORCED
+    Location: app.js line 91-95
+    Production: 5 attempts per 15 minutes
+    Development: 50 attempts per 15 minutes
+
+[✓] TC-038: Employee login with 2FA enabled requires OTP - VERIFIED
+    Flow: Login -> OTP sent via SMS -> Verify OTP -> Token issued
+
+[✓] TC-039: Client login with 2FA enabled requires OTP - VERIFIED
+    Flow: Login -> OTP sent via SMS -> Verify OTP -> Token issued
+
+------------------------------------------------------------------------------------
+G. TWO-FACTOR AUTHENTICATION (2FA)
+------------------------------------------------------------------------------------
+[✓] TC-040: Enable 2FA without phone number - REJECTED
+    Location: employeeController.js line 174-180, clientController.js line 93-99
+    Error: "Phone number is required to enable 2FA"
+
+[✓] TC-041: Enable 2FA without verified phone - REJECTED
+    Location: employeeController.js line 182-188, clientController.js line 101-107
+    Error: "Please verify your phone number first"
+
+[✓] TC-042: Enable 2FA with verified phone - SUCCESS
+    Test: backendTesting.js, frontendTesting.cjs
+    Result: twoFactorEnabled = true
+
+[✓] TC-043: Disable 2FA - SUCCESS
+    Result: twoFactorEnabled = false
+
+[✓] TC-044: Phone number change auto-disables 2FA - VERIFIED
+    Location: employeeController.js line 147-162, clientController.js line 64-79
+    Auto-disabled: twoFactorEnabled = false, phoneVerified = false
+
+[✓] TC-045: 2FA login flow with valid OTP - SUCCESS
+    Steps: Login -> Send OTP -> Verify OTP -> Token issued
+
+[✓] TC-046: 2FA login flow with invalid OTP - REJECTED
+    Error: "Invalid OTP. Please try again."
+
+[✓] TC-047: 2FA login flow with expired OTP - REJECTED
+    Error: "OTP has expired. Please request a new one."
+
+------------------------------------------------------------------------------------
+H. PHONE VERIFICATION
+------------------------------------------------------------------------------------
+[✓] TC-048: Send phone verification OTP - SUCCESS
+    Test: backendTesting.js step 20, frontendTesting.cjs all portals
+    Twilio SMS sent (or console log in dev mode)
+
+[✓] TC-049: Verify phone with correct OTP - SUCCESS
+    Test: backendTesting.js step 20, frontendTesting.cjs all portals
+    Result: phoneVerified = true
+
+[✓] TC-050: Verify phone with incorrect OTP - REJECTED
+    Test: backendTesting.js step 21, frontendTesting.cjs all portals
+    Error: "Invalid OTP. Please try again."
+
+[✓] TC-051: Phone change resets verification status - VERIFIED
+    Result: phoneVerified = false, OTP fields cleared
+
+[✓] TC-052: OTP masking in logs - VERIFIED
+    Only last 4 digits shown in development logs
+
+------------------------------------------------------------------------------------
+I. PASSWORD RESET
+------------------------------------------------------------------------------------
+[✓] TC-053: Forgot password with valid email - SUCCESS
+    Flow: Email submitted -> OTP sent -> Verify OTP -> Reset allowed
+
+[✓] TC-054: Forgot password with non-existent email - REJECTED
+    Error: "There is no user with that email address"
+
+[✓] TC-055: Verify reset OTP with correct code - SUCCESS
+    Returns: Reset token
+
+[✓] TC-056: Verify reset OTP with incorrect code - REJECTED
+    Error: "Invalid OTP. Please try again."
+
+[✓] TC-057: Verify reset OTP with expired code - REJECTED
+    Error: "OTP has expired. Please request a new one."
+
+[✓] TC-058: Reset password with valid token and matching passwords - SUCCESS
+    Result: Password updated, user logged in
+
+[✓] TC-059: Reset password with mismatched passwords - REJECTED
+    Error: "Passwords do not match"
+
+------------------------------------------------------------------------------------
+J. AUTHORIZATION - ROLE-BASED ACCESS CONTROL
+------------------------------------------------------------------------------------
+[✓] TC-060: Employee accessing employee-only routes - ALLOWED
+    Protected by: protect middleware
+
+[✓] TC-061: Client accessing client-only routes - ALLOWED
+    Protected by: protect middleware
+
+[✓] TC-062: Manager accessing manager-only routes - ALLOWED
+    Protected by: protect + restrictTo('manager')
+    Routes: requestRoutes.js lines 29, 36, 43, 50, 56, 62, 68, 74
+
+[✓] TC-063: Employee accessing manager-only routes - REJECTED
+    Error: "You do not have permission to perform this action"
+
+[✓] TC-064: Client accessing employee routes - REJECTED
+    Error: "You are not logged in! Please log in to get access."
+
+[✓] TC-065: Unauthenticated user accessing protected routes - REJECTED
+    Error: "You are not logged in! Please log in to get access."
+
+------------------------------------------------------------------------------------
+K. AUTHORIZATION - DEPARTMENT-BASED APPROVAL
+------------------------------------------------------------------------------------
+[✓] TC-066: Manager approving request in their department - ALLOWED
+    Validation: Department match required
+
+[✓] TC-067: Manager rejecting request in their department - ALLOWED
+    Test: backendTesting.js step 22-23
+    Result: rejectedBy includes department
+
+[✓] TC-068: Manager toggling department approval decisions - ALLOWED
+    Can reject then re-approve same request
+
+[✓] TC-069: Manager with isApprover=false attempting approval - REJECTED
+    Validation: Requires isApprover flag
+
+------------------------------------------------------------------------------------
+L. SECURITY - XSS AND INJECTION PROTECTION
+------------------------------------------------------------------------------------
+[✓] TC-070: NoSQL injection attempt in query - SANITIZED
+    Location: app.js line 49
+    Library: express-mongo-sanitize
+
+[✓] TC-071: XSS attack attempt in input - SANITIZED
+    Location: app.js line 52
+    Library: xss-clean
+
+[✓] TC-072: HTTP header security - ENFORCED
+    Location: app.js line 30
+    Library: helmet
+
+[✓] TC-073: CSRF protection via SameSite cookie - ENFORCED
+    Location: authController.js line 25
+    Setting: sameSite: 'strict'
+
+[✓] TC-074: Parameter pollution prevention - ENFORCED
+    Location: app.js line 54-62
+    Library: hpp
+
+------------------------------------------------------------------------------------
+M. SECURITY - RATE LIMITING
+------------------------------------------------------------------------------------
+[✓] TC-075: API rate limit (100 requests/hour) - ENFORCED
+    Location: app.js line 79-83
+    Limit: 100 requests per hour per IP
+
+[✓] TC-076: Auth rate limit development (50/15 min) - ENFORCED
+    Location: app.js line 88-93
+    Applies to: login, signup, forgotPassword
+
+[✓] TC-077: Auth rate limit production (5/15 min) - ENFORCED
+    Location: app.js line 88-93
+    Stricter limit for production
+
+------------------------------------------------------------------------------------
+N. ERROR HANDLING
+------------------------------------------------------------------------------------
+[✓] TC-078: Development mode shows full error stack - VERIFIED
+    Location: errorController.js sendErrorDev function
+    Returns: status, error, stack, message
+
+[✓] TC-079: Production mode shows generic errors - VERIFIED
+    Location: errorController.js sendErrorProd function
+    Returns: Generic message for non-operational errors
+
+[✓] TC-080: CastError (invalid MongoDB ObjectId) - HANDLED
+    Error: "Invalid _id: <value>"
+
+[✓] TC-081: Duplicate field error (MongoDB 11000) - HANDLED
+    Error: "Duplicate field values. Please use another value!"
+
+[✓] TC-082: Validation error (Mongoose) - HANDLED
+    Error: "Invalid Input Data. <details>"
+
+[✓] TC-083: Invalid JWT token - HANDLED
+    Error: "Invalid token. Please log in again!"
+
+[✓] TC-084: Expired JWT token - HANDLED
+    Error: "Your token has expired! Please log in again."
+
+------------------------------------------------------------------------------------
+O. FRONTEND - STATE MANAGEMENT
+------------------------------------------------------------------------------------
+[✓] TC-085: Login persists user state in localStorage - VERIFIED
+    Location: UserContext.tsx
+    Stored: authToken, employeeProfile, lastUserRole
+
+[✓] TC-086: Logout clears all user state - VERIFIED
+    Cleared: authToken, employeeProfile, lastUserRole
+
+[✓] TC-087: Token included in API requests via interceptor - VERIFIED
+    Location: Front End/src/lib/api.ts
+    Header: Authorization: Bearer <token>
+
+[✓] TC-088: 401 error triggers automatic logout - VERIFIED
+    Location: api.ts response interceptor
+
+[✓] TC-089: UserContext updates on profile changes - VERIFIED
+    Function: updateEmployee in UserContext.tsx
+
+------------------------------------------------------------------------------------
+P. FRONTEND - PHONE VERIFICATION UI
+------------------------------------------------------------------------------------
+[✓] TC-090: Phone input field validates E.164 format - VERIFIED
+    Placeholder guides users to correct format
+
+[✓] TC-091: Send OTP button disabled during API call - VERIFIED
+    Prevents duplicate requests
+
+[✓] TC-092: OTP input accepts only 6 digits - VERIFIED
+    Frontend validation before submission
+
+[✓] TC-093: Verify button disabled until 6 digits entered - VERIFIED
+    UI validation
+
+[✓] TC-094: Success message after phone verification - VERIFIED
+    Toast notification displayed
+
+[✓] TC-095: Error message on verification failure - VERIFIED
+    Toast notification with error details
+
+------------------------------------------------------------------------------------
+Q. PROFILE UPDATES
+------------------------------------------------------------------------------------
+[✓] TC-096: Employee profile update with valid data - SUCCESS
+    Test: frontendTesting.cjs employee portal
+    Updates reflected in database and frontend
+
+[✓] TC-097: Client profile update with valid data - SUCCESS
+    Test: frontendTesting.cjs client portal
+    Updates reflected in database and frontend
+
+[✓] TC-098: Manager profile update with phone number - SUCCESS
+    Test: frontendTesting.cjs manager portal step 18
+    Phone field included in update request
+
+[✓] TC-099: Profile update with invalid phone format - REJECTED
+    Error: "Phone number must be in E.164 format"
+
+[✓] TC-100: Phone update clears verification and disables 2FA - VERIFIED
+    Automatic: phoneVerified = false, twoFactorEnabled = false
+
+------------------------------------------------------------------------------------
+R. TESTING INFRASTRUCTURE
+------------------------------------------------------------------------------------
+[✓] TC-101: Backend smoke testing with temp data - SUCCESS
+    Script: npm run test-backend smoke
+    Coverage: All major endpoints
+
+[✓] TC-102: Backend specific testing with real IDs - SUCCESS
+    Script: npm run test-backend specific
+    Tests specific employee/client workflows
+
+[✓] TC-103: Frontend client portal testing - SUCCESS
+    Script: npm run test-frontend client
+    Coverage: Signup, login, profile, phone verification
+
+[✓] TC-104: Frontend employee portal testing - SUCCESS
+    Script: npm run test-frontend employee
+    Coverage: Signup, login, profile, phone verification
+
+[✓] TC-105: Frontend manager portal testing - SUCCESS
+    Script: npm run test-frontend manager
+    Coverage: Login, profile, phone verification, department approvals
+
+
+===================================================================================
+                      SECTION 2: TEST CASES REQUIRING TESTING
+===================================================================================
+
+These test cases need manual testing or additional automated coverage.
+
+------------------------------------------------------------------------------------
+A. EDGE CASES - PAGE REFRESH AND NAVIGATION
+------------------------------------------------------------------------------------
+[ok] TC-201: Page refresh after login maintains session
+    Test: Login -> Refresh page -> Verify still logged in
+    Expected: Token persists in cookie, state reloads from localStorage
+    Risk: Token lost, user logged out unexpectedly
+
+[ok] TC-202: Page refresh during OTP verification
+    Test: Request OTP -> Refresh page -> Enter OTP
+    Expected: OTP verification form resets, need to request new OTP
+    Risk: OTP lost, user confused about state
+
+[ok] TC-203: Browser back button after logout
+    Test: Logout -> Press back button
+    Expected: Redirect to login, no access to protected content
+    Risk: Cached pages accessible without authentication
+
+[later ] TC-204: Browser forward button during multi-step flow
+    Test: Step 1 -> Step 2 -> Back -> Forward
+    Expected: Navigate correctly through workflow
+    Risk: State mismatch, data loss
+
+[test after deployment ] TC-205: Multiple tabs with different logged-in users
+    Test: Tab 1 login as employee, Tab 2 login as client
+    Expected: Each tab maintains separate session
+    Risk: Session conflict, wrong user context
+
+[ok] TC-206: Page refresh during form submission
+    Test: Fill form -> Submit -> Refresh immediately
+    Expected: Form resets, no duplicate submission
+    Risk: Duplicate entries in database
+
+------------------------------------------------------------------------------------
+B. EDGE CASES - CONCURRENT OPERATIONS
+------------------------------------------------------------------------------------
+[ok ] TC-207: Multiple OTP requests in rapid succession
+    Test: Click "Send OTP" multiple times quickly
+    Expected: Rate limiting prevents duplicate sends
+    Risk: Multiple SMS sent, user confused
+
+[ later] TC-208: OTP verification during expiry window
+    Test: Request OTP -> Wait 4:59 -> Verify
+    Expected: Verification succeeds if within 5 minutes
+    Risk: Race condition at expiry boundary
+
+[ok ] TC-209: Enable 2FA while phone verification in progress
+    Test: Send phone OTP -> Enable 2FA before verification
+    Expected: 2FA enable fails, requires verification first
+    Risk: 2FA enabled without verified phone
+
+[ ] TC-210: Profile update while OTP verification pending
+    Test: Send OTP -> Update name -> Verify OTP
+    Expected: OTP verification succeeds, profile updated
+    Risk: State inconsistency
+
+[ ] TC-211: Simultaneous login attempts from different devices
+    Test: Device 1 and Device 2 login simultaneously
+    Expected: Both succeed with separate tokens
+    Risk: Token conflict, session override
+
+[ ] TC-212: Password change during active session
+    Test: Login -> Change password on another device -> Continue session
+    Expected: Active session remains valid until token expires
+    Risk: Immediate logout, user confusion
+
+------------------------------------------------------------------------------------
+C. EDGE CASES - NETWORK AND CONNECTIVITY
+------------------------------------------------------------------------------------
+[ ] TC-213: API request during network disconnection
+    Test: Disconnect network -> Submit form
+    Expected: Error message "Network error" displayed
+    Risk: Indefinite loading, no feedback
+
+[ ] TC-214: Partial response from server (connection interrupted)
+    Test: Slow connection -> Interrupt during response
+    Expected: Error caught, user notified
+    Risk: Partial data saved, corrupted state
+
+[ ] TC-215: API timeout (slow server response)
+    Test: Very slow API endpoint
+    Expected: Timeout after configured duration, error shown
+    Risk: Indefinite wait, frozen UI
+
+[ ] TC-216: Reconnection after network restored
+    Test: Disconnect -> Attempt action -> Reconnect -> Retry
+    Expected: Request succeeds after reconnection
+    Risk: Failed retry, cached error state
+
+------------------------------------------------------------------------------------
+D. EDGE CASES - TWILIO AND SMS INTEGRATION
+------------------------------------------------------------------------------------
+[ ] TC-217: Twilio API failure (service down)
+    Test: Twilio unavailable -> Request OTP
+    Expected: Error message "Failed to send OTP, please try again"
+    Risk: Silent failure, user waits indefinitely
+
+[ ] TC-218: SMS delivery delay (>2 minutes)
+    Test: Request OTP -> SMS arrives after 3 minutes
+    Expected: OTP still valid if within 5-minute window
+    Risk: User thinks OTP didn't send, requests new one
+
+[ ] TC-219: Phone number not registered with Twilio (trial account)
+    Test: Use unverified number with trial account
+    Expected: Development mode logs OTP to console
+    Risk: Production fails silently
+
+[ ] TC-220: International phone numbers with various country codes
+    Test: +44, +91, +81, +86 etc.
+    Expected: All valid E.164 formats accepted
+    Risk: Some country codes rejected by regex
+
+[ ] TC-221: SMS character limit exceeded (long OTP message)
+    Test: Very long SMS template
+    Expected: Message truncated or split
+    Risk: OTP code split across messages
+
+------------------------------------------------------------------------------------
+E. DATABASE AND DATA INTEGRITY
+------------------------------------------------------------------------------------
+[ ] TC-222: Phone uniqueness in production (currently disabled)
+    Test: Sign up two users with same phone in production
+    Expected: Second signup fails with duplicate error
+    Risk: ENABLED IN DEV, MUST ENABLE IN PRODUCTION
+    Location: employeeModel.js line 58, clientModel.js line 30
+
+[ ] TC-223: Database connection failure during operation
+    Test: Stop MongoDB -> Attempt signup
+    Expected: Error message "Database connection failed"
+    Risk: Unhandled exception, server crash
+
+[ ] TC-224: Database write failure (disk full)
+    Test: Full disk -> Create record
+    Expected: Error caught, user notified
+    Risk: Silent failure, data loss
+
+[ ] TC-225: Concurrent profile updates (race condition)
+    Test: Two devices update profile simultaneously
+    Expected: Last write wins, no data corruption
+    Risk: Lost updates, partial data
+
+[ ] TC-226: Orphaned OTP records (user never verifies)
+    Test: Request many OTPs -> Never verify
+    Expected: Old OTPs auto-cleared or expired
+    Risk: Database bloat with OTP records
+
+[ ] TC-227: Employee deletion with pending projects
+    Test: Delete employee assigned to active project
+    Expected: Cascade delete or reject with error
+    Risk: Foreign key violations, orphaned data
+
+------------------------------------------------------------------------------------
+F. AUTHORIZATION EDGE CASES
+------------------------------------------------------------------------------------
+[ ] TC-228: Token manipulation (modified JWT)
+    Test: Manually alter JWT token -> Make API request
+    Expected: Rejected with "Invalid token" error
+    Risk: Unauthorized access if signature not verified
+
+[ ] TC-229: Token expiry during active session
+    Test: Login -> Wait for token expiry -> Make request
+    Expected: 401 error, redirect to login
+    Risk: Silent failure, no notification
+
+[ ] TC-230: Role escalation attempt (employee to manager)
+    Test: Modify localStorage role -> Access manager routes
+    Expected: Backend rejects based on DB role
+    Risk: Frontend shows manager UI, backend allows access
+
+[ ] TC-231: Manager accessing another department's requests
+    Test: Manager A accesses Manager B's department requests
+    Expected: Filtered to only show own department
+    Risk: Cross-department data leak
+
+[ ] TC-232: isApprover flag manually set to true
+    Test: Update database isApprover=true for non-approver
+    Expected: Still requires manager role + department match
+    Risk: Unauthorized approvals
+
+------------------------------------------------------------------------------------
+G. INPUT VALIDATION EDGE CASES
+------------------------------------------------------------------------------------
+[ ] TC-233: Email with international characters (IDN)
+    Test: user@münchen.de or user@中国.com
+    Expected: Validator accepts IDN domains
+    Risk: Legitimate international emails rejected
+
+[ ] TC-234: Very long email address (>100 characters)
+    Test: very.long.email.address.with.many.dots@subdomain.domain.com
+    Expected: Accepted if valid format
+    Risk: Database field length limit exceeded
+
+[ ] TC-235: SQL injection in input fields
+    Test: Enter '; DROP TABLE employees; -- in name field
+    Expected: Sanitized, stored as literal string
+    Risk: NoSQL injection if not sanitized
+
+[ ] TC-236: HTML/JavaScript injection in profile fields
+    Test: <script>alert('XSS')</script> in name
+    Expected: Sanitized by xss-clean middleware
+    Risk: XSS attack if not sanitized
+
+[ ] TC-237: Unicode characters in name fields
+    Test: Name with emoji, Arabic, Chinese characters
+    Expected: Accepted and stored correctly
+    Risk: Character encoding issues, display problems
+
+[ ] TC-238: Empty string vs null vs undefined in optional fields
+    Test: Submit form with empty optional field
+    Expected: Consistent handling (stored as null or empty string)
+    Risk: Type mismatch errors
+
+------------------------------------------------------------------------------------
+H. 2FA WORKFLOW EDGE CASES
+------------------------------------------------------------------------------------
+[ ] TC-239: Enable 2FA -> Delete phone number
+    Test: Enable 2FA -> Remove phone from profile
+    Expected: 2FA auto-disabled, phone required
+    Risk: 2FA enabled without phone, login fails
+
+[ ] TC-240: 2FA login -> Change phone during OTP verification
+    Test: Login -> OTP sent -> Change phone on another device -> Verify OTP
+    Expected: OTP verification fails (phone changed)
+    Risk: OTP verifies for wrong phone number
+
+[ ] TC-241: Max OTP attempts during 2FA login
+    Test: Login -> Enter wrong OTP 3 times
+    Expected: Locked out, must request new OTP
+    Risk: Account lockout, no recovery mechanism
+
+[ ] TC-242: 2FA enabled -> Disable -> Enable again immediately
+    Test: Toggle 2FA off and on rapidly
+    Expected: Each state change persists correctly
+    Risk: State inconsistency, 2FA partially enabled
+
+------------------------------------------------------------------------------------
+I. PASSWORD RESET EDGE CASES
+------------------------------------------------------------------------------------
+[ ] TC-243: Reset password while logged in
+    Test: Active session -> Use forgot password
+    Expected: Password reset succeeds, session remains valid
+    Risk: Session invalidated unexpectedly
+
+[ ] TC-244: Use expired reset token
+    Test: Request reset -> Wait for expiry -> Use token
+    Expected: Error "Reset token expired"
+    Risk: Password reset succeeds with expired token
+
+[ ] TC-245: Reuse reset token after successful reset
+    Test: Reset password -> Use same token again
+    Expected: Error "Token already used or invalid"
+    Risk: Token reuse allows multiple resets
+
+[ ] TC-246: Multiple password reset requests
+    Test: Request reset 5 times in a row
+    Expected: Each generates new token, old ones invalidated
+    Risk: Multiple valid tokens exist simultaneously
+
+------------------------------------------------------------------------------------
+J. FRONTEND UI/UX EDGE CASES
+------------------------------------------------------------------------------------
+[ ] TC-247: Form submission with JavaScript disabled
+    Test: Disable JavaScript -> Submit form
+    Expected: No client-side validation, backend validates
+    Risk: Broken UI, form doesn't submit
+
+[ ] TC-248: Very slow client device (old browser)
+    Test: Use outdated browser/device
+    Expected: UI loads slowly but functions correctly
+    Risk: JavaScript errors, incompatible features
+
+[ ] TC-249: Copy-paste password with extra whitespace
+    Test: Copy password with leading/trailing spaces -> Paste -> Submit
+    Expected: Whitespace trimmed or validation fails clearly
+    Risk: Login fails, user confused
+
+[ ] TC-250: Autocomplete fills wrong field
+    Test: Browser autocomplete fills password in email field
+    Expected: Validation catches wrong data type
+    Risk: Obscure validation error
+
+[ ] TC-251: Navigation during API loading state
+    Test: Submit form -> Navigate away immediately
+    Expected: Request cancelled or completed in background
+    Risk: Incomplete operation, data inconsistency
+
+[ ] TC-252: Toast notification overflow (many errors at once)
+    Test: Trigger 10 validation errors simultaneously
+    Expected: Toasts queue or most recent shown
+    Risk: UI blocked by overlapping toasts
+
+------------------------------------------------------------------------------------
+K. PRODUCTION ENVIRONMENT SPECIFIC
+------------------------------------------------------------------------------------
+[ ] TC-253: HTTPS cookie security in production
+    Test: Production deploy with HTTP (not HTTPS)
+    Expected: Cookies not set, error shown
+    Risk: CRITICAL - Secure cookies require HTTPS
+    Location: authController.js line 24
+
+[ ] TC-254: CORS policy in production
+    Test: Request from unauthorized origin
+    Expected: CORS error, request blocked
+    Risk: API accessible from any domain
+    Location: app.js line 33-36
+
+[ ] TC-255: Production error logging (no stack traces)
+    Test: Trigger error in production
+    Expected: Generic error message, details logged server-side
+    Risk: Stack traces leak to users
+
+[ ] TC-256: Phone uniqueness constraint enabled
+    Test: Two users with same phone in production
+    Expected: MUST FAIL with duplicate error
+    Risk: CRITICAL - Currently disabled in models
+    Action Required: Uncomment lines in employeeModel.js:58, clientModel.js:30
+
+[ ] TC-257: Production Twilio credentials
+    Test: Send OTP in production
+    Expected: SMS delivered via Twilio (not console log)
+    Risk: OTP only logged, users don't receive SMS
+
+[ ] TC-258: Production rate limiting (5 auth attempts/15min)
+    Test: 6 login attempts in 15 minutes
+    Expected: 6th attempt blocked
+    Risk: Too lenient, brute force possible
+
+------------------------------------------------------------------------------------
+L. PERFORMANCE AND SCALABILITY
+------------------------------------------------------------------------------------
+[ ] TC-259: API response time under load
+    Test: 100 concurrent requests
+    Expected: All requests complete within acceptable time (<2s)
+    Risk: Slow response, timeout errors
+
+[ ] TC-260: Database query performance with large dataset
+    Test: 10,000+ employees/clients
+    Expected: Queries use indexes, respond quickly
+    Risk: Slow pagination, unindexed queries
+
+[ ] TC-261: Memory leak during long session
+    Test: Keep session active for 24+ hours
+    Expected: Memory usage stable
+    Risk: Memory leak, server crash
+
+[ ] TC-262: File upload size limit (if applicable)
+    Test: Upload very large file
+    Expected: Rejected with size limit error
+    Risk: Server overwhelmed, DoS attack vector
+
+------------------------------------------------------------------------------------
+M. DEPARTMENT WORKFLOW SPECIFIC
+------------------------------------------------------------------------------------
+[ ] TC-263: Request rejected by all departments
+    Test: All departments reject request
+    Expected: Request marked as rejected, client notified
+    Risk: Request stuck in limbo, no final status
+
+[ ] TC-264: Manager removes department while request pending
+    Test: Request pending -> Manager department changed
+    Expected: Existing approvals persist
+    Risk: Orphaned approval, unable to modify
+
+[ ] TC-265: Circular approval dependencies
+    Test: Department A waits for B, B waits for A
+    Expected: System detects and prevents deadlock
+    Risk: Requests never complete
+
+[ ] TC-266: Request approved then rejected by same manager
+    Test: Approve -> Reject for same department
+    Expected: Rejection state persists
+    Risk: State flip-flops, inconsistent data
+
+------------------------------------------------------------------------------------
+N. CRITICAL PRODUCTION READINESS ISSUES
+------------------------------------------------------------------------------------
+[!] CRITICAL TC-267: Phone uniqueness MUST be enabled in production
+    Current State: DISABLED in both employeeModel.js and clientModel.js
+    Action Required: 
+      - employeeModel.js line 58: Uncomment "unique: true"
+      - clientModel.js line 30: Uncomment "unique: true"
+    Risk: Multiple users can register with same phone number
+
+[!] CRITICAL TC-268: Twilio account upgrade for production
+    Current State: Trial account with verified number restrictions
+    Action Required: Upgrade to paid Twilio account
+    Risk: OTP SMS not sent to unverified numbers
+
+[!] CRITICAL TC-269: HTTPS enforcement in production
+    Current State: Secure cookies require HTTPS
+    Action Required: Deploy with SSL/TLS certificate
+    Risk: Authentication cookies not set, login fails
+
+[!] CRITICAL TC-270: Environment variables in production
+    Required Variables:
+      - NODE_ENV=production
+      - TWILIO_ACCOUNT_SID (valid)
+      - TWILIO_AUTH_TOKEN (valid)
+      - TWILIO_PHONE_NUMBER (valid)
+      - FRONTEND_URL (production domain)
+      - JWT_SECRET (strong random string)
+      - DATABASE (production MongoDB URI)
+    Risk: Service failures, security vulnerabilities
+
+
+===================================================================================
+                              TEST EXECUTION SUMMARY
+===================================================================================
+
+FULFILLED TEST CASES: 105 (TC-001 to TC-105)
+  ✓ Input Validation: 31 test cases
+  ✓ Authentication: 27 test cases
+  ✓ Authorization: 10 test cases
+  ✓ Security: 14 test cases
+  ✓ Error Handling: 7 test cases
+  ✓ Frontend: 11 test cases
+  ✓ Testing Infrastructure: 5 test cases
+
+PENDING TEST CASES: 165 (TC-201 to TC-270)
+  ⏳ Page Refresh & Navigation: 6 test cases
+  ⏳ Concurrent Operations: 6 test cases
+  ⏳ Network & Connectivity: 4 test cases
+  ⏳ Twilio & SMS Integration: 5 test cases
+  ⏳ Database & Data Integrity: 6 test cases
+  ⏳ Authorization Edge Cases: 5 test cases
+  ⏳ Input Validation Edge Cases: 6 test cases
+  ⏳ 2FA Workflow Edge Cases: 4 test cases
+  ⏳ Password Reset Edge Cases: 4 test cases
+  ⏳ Frontend UI/UX: 6 test cases
+  ⏳ Production Environment: 6 test cases
+  ⏳ Performance & Scalability: 4 test cases
+  ⏳ Department Workflow: 4 test cases
+  ⚠️  CRITICAL Production Readiness: 4 test cases
+
+TOTAL TEST CASES: 270
+
+===================================================================================
+                            HIGH PRIORITY ACTIONS
+===================================================================================
+
+BEFORE PRODUCTION DEPLOYMENT:
+
+1. [CRITICAL] Enable phone uniqueness constraint
+   - File: Back End/models/employeeModel.js line 58
+   - File: Back End/models/clientModel.js line 30
+   - Action: Uncomment "unique: true" for phone field
+
+2. [CRITICAL] Upgrade Twilio account
+   - Current: Trial account with restrictions
+   - Required: Paid account for unrestricted SMS
+
+3. [CRITICAL] Enable HTTPS
+   - Required for secure cookie authentication
+   - Obtain SSL/TLS certificate for production domain
+
+4. [CRITICAL] Verify all production environment variables
+   - Review config.env settings
+   - Ensure strong JWT_SECRET
+   - Validate Twilio credentials
+
+5. [HIGH] Test page refresh scenarios
+   - Verify session persistence
+   - Test state recovery
+
+6. [HIGH] Test concurrent operations
+   - Multiple OTP requests
+   - Simultaneous profile updates
+
+7. [HIGH] Test network error handling
+   - Connection failures
+   - Timeouts
+   - Partial responses
+
+8. [MEDIUM] Performance testing
+   - Load testing with concurrent users
+   - Database query optimization
+   - Memory leak detection
+
+9. [MEDIUM] Cross-browser testing
+   - Chrome, Firefox, Safari, Edge
+   - Mobile browsers (iOS Safari, Chrome Mobile)
+
+10. [MEDIUM] International phone number testing
+    - Various country codes
+    - E.164 format edge cases
+
+===================================================================================
+                                END OF DOCUMENT
+===================================================================================

@@ -8,6 +8,9 @@ type ApiEmployee = {
   role?: string;
   department?: string;
   phone?: string;
+  phoneVerified?: boolean;
+  twoFactorEnabled?: boolean;
+  twoFactorMethod?: 'sms' | 'email';
   _id?: string;
   isApprover?: boolean;
   approvesDepartments?: string[];
@@ -22,6 +25,9 @@ export function mapEmployeeFromApi(user: ApiEmployee): Employee {
     department_id: 0,
     availability: user.availability || 'Available',
     phone: user.phone,
+    phoneVerified: user.phoneVerified,
+    twoFactorEnabled: user.twoFactorEnabled,
+    twoFactorMethod: user.twoFactorMethod,
     role: user.role,
     department: user.department,
     _id: user._id,

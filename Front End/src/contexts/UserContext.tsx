@@ -105,7 +105,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const updateEmployee = (updatedInfo: Partial<Employee>) => {
     if (employee) {
-      setEmployee(prevEmployee => ({ ...prevEmployee!, ...updatedInfo }));
+      const updatedEmployee = { ...employee, ...updatedInfo };
+      setEmployee(updatedEmployee);
+      // Sync to localStorage so page refresh shows updated data
+      localStorage.setItem('employeeProfile', JSON.stringify(updatedEmployee));
     }
   };
 

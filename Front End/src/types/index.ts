@@ -17,6 +17,9 @@ export interface Employee {
   department_id: number;
   availability: 'Available' | 'Busy' | 'On Leave';
   phone?: string;
+  phoneVerified?: boolean; // Phone verification status
+  twoFactorEnabled?: boolean; // 2FA enabled status
+  twoFactorMethod?: 'sms' | 'email'; // 2FA method
   skills?: string[];
   // Optional fields when sourced from backend instead of CSV
   role?: string;

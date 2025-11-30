@@ -280,9 +280,10 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     return next(new AppError('There is no user with that email address.', 404));
   }
 
-  // 2) Check if user has verified phone number (OTP PATH)
-  if (user.phone && user.phoneVerified) {
-    // ========== OTP PATH (SECURE - FOR USERS WITH VERIFIED PHONES) ==========
+  // 2) Check if user has a phone number (OTP PATH)
+  // Note: We don't require phoneVerified here because OTP verification itself proves phone ownership
+  if (user.phone) {
+    // ========== OTP PATH (SECURE - OTP PROVES PHONE OWNERSHIP) ==========
     
     // Rate limiting check
     if (!OTPService.canSendOTP(user.otpLastSent)) {

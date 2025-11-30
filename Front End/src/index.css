@@ -102,3 +102,252 @@
 @layer components {
   /* Additional component styles can be added here if needed */
 }
+
+/* ============================================ */
+/* RESPONSIVE LAYOUT FIX - Prevent overflow on window resize */
+/* ============================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Ensure all containers don't overflow */
+.container {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Fix for sidebar layouts on smaller screens */
+@media (max-width: 1024px) {
+  /* Adjust sidebar if it exists */
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  aside {
+    max-width: 200px;
+    overflow-y: auto;
+  }
+  
+  /* Adjust main content area */
+  main,
+  [class*="main"],
+  [class*="Main"] {
+    margin-left: 0 !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    max-width: 100%;
+  }
+}
+
+/* Fix for very small screens (mobile) */
+@media (max-width: 768px) {
+  /* Make sidebar collapsible/hidden on mobile */
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  aside {
+    position: fixed;
+    left: -250px;
+    transition: left 0.3s ease;
+    z-index: 1000;
+  }
+  
+  /* Full width content on mobile */
+  main,
+  [class*="main"],
+  [class*="Main"] {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 0.5rem;
+  }
+  
+  /* Adjust cards and grids for mobile */
+  [class*="grid"] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Make buttons and inputs full width on very small screens */
+  @media (max-width: 480px) {
+    button:not([class*="icon"]) {
+      width: 100%;
+    }
+  }
+}
+
+/* Ensure cards and content scale properly */
+[class*="card"],
+[class*="Card"] {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Fix for tables on small screens */
+table {
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  table {
+    font-size: 0.875rem;
+  }
+}
+
+/* Fix for forms */
+form {
+  max-width: 100%;
+}
+
+input,
+textarea,
+select {
+  max-width: 100%;
+}
+
+/* Prevent images from overflowing */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ============================================ */
+/* PROPORTIONAL SCALING - Everything scales with screen size */
+/* ============================================ */
+
+/* Scale everything proportionally as screen gets smaller */
+@media (max-width: 1400px) {
+  html {
+    font-size: 95%;
+  }
+}
+
+@media (max-width: 1200px) {
+  html {
+    font-size: 90%;
+  }
+  
+  /* Responsive buttons - text truncation */
+  button {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  /* Truncate long button text */
+  button span {
+    display: inline-block;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 1024px) {
+  html {
+    font-size: 85%;
+  }
+  
+  /* Sidebar becomes narrower */
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  aside {
+    width: 180px !important;
+    min-width: 180px !important;
+    max-width: 180px !important;
+  }
+  
+  /* Adjust main content margin for narrower sidebar */
+  main,
+  [class*="main"],
+  [class*="Main"] {
+    margin-left: 180px !important;
+  }
+  
+  /* Smaller button text */
+  button {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.6rem;
+  }
+  
+  button span {
+    max-width: 100px;
+  }
+  
+  /* Sidebar text smaller */
+  [class*="sidebar"] *,
+  [class*="Sidebar"] *,
+  aside * {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 80%;
+  }
+  
+  /* Even smaller sidebar - icon only mode */
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  aside {
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+    position: fixed;
+    left: 0;
+  }
+  
+  /* Adjust main content for icon-only sidebar */
+  main,
+  [class*="main"],
+  [class*="Main"] {
+    margin-left: 60px !important;
+    width: calc(100% - 60px) !important;
+  }
+  
+  /* Hide sidebar text, show only icons */
+  [class*="sidebar"] span:not([class*="icon"]):not(svg),
+  [class*="Sidebar"] span:not([class*="icon"]):not(svg),
+  aside span:not([class*="icon"]):not(svg) {
+    display: none;
+  }
+  
+  /* Smaller buttons */
+  button span:not([data-full-text]) {
+    max-width: 60px;
+  }
+}
+
+/* Request cards and buttons responsive sizing */
+[class*="card"] {
+  min-width: 0;
+}
+
+[class*="card"] button {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Ensure grid layouts adapt */
+[class*="grid"] {
+  gap: clamp(0.5rem, 2vw, 1.5rem);
+}
+
+/* Responsive padding for containers */
+.container,
+[class*="container"] {
+  padding-left: clamp(0.5rem, 2vw, 2rem);
+  padding-right: clamp(0.5rem, 2vw, 2rem);
+}

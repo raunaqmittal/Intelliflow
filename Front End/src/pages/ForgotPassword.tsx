@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/api';
 import type { UserRole } from '@/types';
-import { AxiosError } from 'axios';
+import { getErrorMessage, logError } from '@/utils/errorHandler';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -58,10 +58,8 @@ export default function ForgotPassword() {
         }
       }
     } catch (err: unknown) {
-      let msg = 'Failed to request password reset.';
-      if (err instanceof AxiosError && err.response?.data?.message) {
-        msg = err.response.data.message;
-      }
+      logError(err, 'Forgot Password Request');
+      const msg = getErrorMessage(err, 'Failed to request password reset.');
       setError(msg);
     } finally {
       setLoading(false);
@@ -81,10 +79,8 @@ export default function ForgotPassword() {
         navigate(`/reset-password/${resetToken}?role=${role}`);
       }
     } catch (err: unknown) {
-      let msg = 'Invalid or expired OTP.';
-      if (err instanceof AxiosError && err.response?.data?.message) {
-        msg = err.response.data.message;
-      }
+      logError(err, 'OTP Verification');
+      const msg = getErrorMessage(err, 'Invalid or expired OTP.');
       setError(msg);
     } finally {
       setLoading(false);

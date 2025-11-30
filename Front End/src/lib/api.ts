@@ -1,11 +1,12 @@
-import axios, { AxiosHeaders } from 'axios';
+import axios, { AxiosHeaders, AxiosError } from 'axios';
 
 // Base URL comes from env; default to Vite proxy path so we don't need CORS in dev
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export const api = axios.create({
   baseURL,
-  withCredentials: true // Enable sending cookies with requests (for httpOnly cookies)
+  withCredentials: true, // Enable sending cookies with requests (for httpOnly cookies)
+  timeout: 15000 // 15 second timeout to prevent indefinite loading
 });
 
 // Attach Authorization header from localStorage if present
@@ -38,7 +39,24 @@ api.interceptors.request.use((config) => {
 // Simple response error passthrough; could add global toast handling here
 api.interceptors.response.use(
   (res) => res,
-  (error) => Promise.reject(error)
+  (error: AxiosError) => {
+    // Handle network errors (no internet connection)
+    if (!error.response && error.code === 'ERR_NETWORK') {
+      const networkError = new Error('Network error. Please check your internet connection.');
+      networkError.name = 'NetworkError';
+      return Promise.reject(networkError);
+    }
+    
+    // Handle timeout errors
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      const timeoutError = new Error('Request timeout. Please try again.');
+      timeoutError.name = 'TimeoutError';
+      return Promise.reject(timeoutError);
+    }
+    
+    // Pass through other errors as-is
+    return Promise.reject(error);
+  }
 );
 
 export default api;

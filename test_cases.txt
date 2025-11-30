@@ -498,12 +498,12 @@ B. EDGE CASES - CONCURRENT OPERATIONS
     Expected: OTP verification succeeds, profile updated
     Risk: State inconsistency
 
-[ ] TC-211: Simultaneous login attempts from different devices
+[ later after deployement] TC-211: Simultaneous login attempts from different devices
     Test: Device 1 and Device 2 login simultaneously
     Expected: Both succeed with separate tokens
     Risk: Token conflict, session override
 
-[ ] TC-212: Password change during active session
+[ later after deployement] TC-212: Password change during active session
     Test: Login -> Change password on another device -> Continue session
     Expected: Active session remains valid until token expires
     Risk: Immediate logout, user confusion
@@ -511,25 +511,29 @@ B. EDGE CASES - CONCURRENT OPERATIONS
 ------------------------------------------------------------------------------------
 C. EDGE CASES - NETWORK AND CONNECTIVITY
 ------------------------------------------------------------------------------------
-[ ] TC-213: API request during network disconnection
+[ok] TC-213: API request during network disconnection
     Test: Disconnect network -> Submit form
     Expected: Error message "Network error" displayed
     Risk: Indefinite loading, no feedback
+    Fix: Added 15s timeout + network error handling in api.ts
 
-[ ] TC-214: Partial response from server (connection interrupted)
+[ok] TC-214: Partial response from server (connection interrupted)
     Test: Slow connection -> Interrupt during response
     Expected: Error caught, user notified
     Risk: Partial data saved, corrupted state
+    Fix: Axios interceptor catches interrupted connections
 
-[ ] TC-215: API timeout (slow server response)
+[ok] TC-215: API timeout (slow server response)
     Test: Very slow API endpoint
     Expected: Timeout after configured duration, error shown
     Risk: Indefinite wait, frozen UI
+    Fix: 15s timeout configured, shows "Request timeout" message
 
-[ ] TC-216: Reconnection after network restored
+[ok] TC-216: Reconnection after network restored
     Test: Disconnect -> Attempt action -> Reconnect -> Retry
     Expected: Request succeeds after reconnection
     Risk: Failed retry, cached error state
+    Fix: Each request is independent, no cached error state
 
 ------------------------------------------------------------------------------------
 D. EDGE CASES - TWILIO AND SMS INTEGRATION

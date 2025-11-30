@@ -9,6 +9,7 @@ import type { UserRole } from '@/types';
 import { AxiosError } from 'axios';
 import api from '@/lib/api';
 import { Smartphone } from 'lucide-react';
+import { getErrorMessage, logError } from '@/utils/errorHandler';
 
 export default function Login() {
   const [selectedRole, setSelectedRole] = useState<UserRole>('employee');
@@ -48,11 +49,8 @@ export default function Login() {
         navigate(role === 'manager' ? '/manager' : '/employee');
       }
     } catch (err: unknown) {
-      console.error('Login error:', err);
-      let errorMessage = 'Login failed. Please check your credentials.';
-      if (err instanceof AxiosError && err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      }
+      logError(err, 'Login');
+      const errorMessage = getErrorMessage(err, 'Login failed. Please check your credentials.');
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -87,11 +85,8 @@ export default function Login() {
       // Refresh page to update context
       window.location.reload();
     } catch (err: unknown) {
-      console.error('OTP verification error:', err);
-      let errorMessage = 'Invalid OTP. Please try again.';
-      if (err instanceof AxiosError && err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      }
+      logError(err, 'OTP Verification');
+      const errorMessage = getErrorMessage(err, 'Invalid OTP. Please try again.');
       setError(errorMessage);
     } finally {
       setOtpLoading(false);

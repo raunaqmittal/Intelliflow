@@ -17,7 +17,7 @@ const requestSchema = z.object({
   requestType: z.enum(["web_dev", "app_dev", "prototype", "research"], {
     required_error: "Please select a request type",
   }),
-  description: z.string().min(10, "Please provide a short description").max(2000).optional().or(z.literal("")),
+  description: z.string().min(20, "Description must be at least 20 characters long").max(500, "Description cannot exceed 500 characters").optional().or(z.literal("")),
   requirementsText: z.string().max(4000).optional().or(z.literal("")),
 });
 

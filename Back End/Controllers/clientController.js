@@ -3,6 +3,22 @@ const catchAsync = require('../Utilities/catchAsync');
 const AppError = require('../Utilities/appError');
 const OTPService = require('../Utilities/otp');
 
+// Normalize phone number to ensure +91 prefix
+const normalizePhone = (phone) => {
+  if (!phone) return undefined; // Return undefined instead of empty value
+  // Remove all non-digits
+  let digits = phone.replace(/\D/g, '');
+  if (!digits) return undefined; // If no digits after cleaning, return undefined
+  
+  // If doesn't start with 91, add it
+  if (!digits.startsWith('91')) {
+    digits = '91' + digits;
+  }
+  
+  // Always return with + prefix for consistency
+  return `+${digits}`;
+};
+
 const filterObj = (obj, ...allowedFields) => {
   const newObj = {};
   Object.keys(obj).forEach(el => {
@@ -79,6 +95,11 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   }
   
   const filteredBody = filterObj(req.body, 'client_name', 'contact_email', 'phone', 'twoFactorEnabled', 'twoFactorMethod');
+  
+  // Normalize phone number if provided
+  if (filteredBody.phone) {
+    filteredBody.phone = normalizePhone(filteredBody.phone);
+  }
   
   // If phone is being updated, reset phoneVerified and disable 2FA
   if (filteredBody.phone) {

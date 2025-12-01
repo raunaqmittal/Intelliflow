@@ -14,6 +14,22 @@ const signToken = id => {
   });
 }
 
+// Normalize phone number to ensure +91 prefix
+const normalizePhone = (phone) => {
+  if (!phone) return undefined; // Return undefined instead of empty value
+  // Remove all non-digits
+  let digits = phone.replace(/\D/g, '');
+  if (!digits) return undefined; // If no digits after cleaning, return undefined
+  
+  // If doesn't start with 91, add it
+  if (!digits.startsWith('91')) {
+    digits = '91' + digits;
+  }
+  
+  // Always return with + prefix for consistency
+  return `+${digits}`;
+}
+
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
 
@@ -52,8 +68,8 @@ exports.signupEmployee = catchAsync(async (req, res, next) => {
     department: req.body.department,
     skills: req.body.skills,
     availability: req.body.availability,
-    phone: req.body.phone,
-    phoneVerified: req.body.phone ? true : false // Auto-enable OTP if phone provided
+    phone: normalizePhone(req.body.phone),
+    phoneVerified: false // User must verify phone number
   });
   createSendToken(newEmployee, 201, res);
 });
@@ -66,8 +82,8 @@ exports.signupClient = catchAsync(async (req, res, next) => {
     contact_email: req.body.contact_email,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
-    phone: req.body.phone,
-    phoneVerified: req.body.phone ? true : false, // Auto-enable OTP if phone provided
+    phone: normalizePhone(req.body.phone),
+    phoneVerified: false, // User must verify phone number
     industry: req.body.industry,
     address: req.body.address
   });

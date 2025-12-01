@@ -37,6 +37,37 @@ export default function Profile() {
   const [otpCode, setOtpCode] = useState('');
   const { toast } = useToast();
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remove all non-digits (including if user types +91 manually)
+    let value = e.target.value.replace(/\D/g, '')
+    
+    // Remove 91 prefix if user typed it manually (we'll add it back)
+    if (value.startsWith('91')) {
+      value = value.slice(2)
+    }
+    
+    // Limit to exactly 10 digits for Indian mobile number
+    value = value.slice(0, 10)
+    
+    // Store with 91 prefix only if user has entered some digits
+    const phoneValue = value ? '91' + value : ''
+    setEditForm({ ...editForm, phone: phoneValue })
+  }
+
+  const formatPhoneDisplay = (phone: string) => {
+    if (!phone) return ''
+    const digits = phone.replace(/\D/g, '')
+    
+    // Remove 91 prefix for display formatting
+    const number = digits.startsWith('91') ? digits.slice(2) : digits
+    
+    if (number) {
+      // Format as +91 XXXXX XXXXX
+      return `+91 ${number.slice(0, 5)} ${number.slice(5)}`
+    }
+    return ''
+  }
+
   useEffect(() => {
     async function fetchPageData() {
       if (employee) {
@@ -303,11 +334,12 @@ export default function Profile() {
                         <Input 
                           id="phone" 
                           type="tel" 
-                          value={editForm.phone} 
-                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} 
+                          value={formatPhoneDisplay(editForm.phone)} 
+                          onChange={handlePhoneChange} 
                           className="mt-1" 
-                          placeholder="+919876543210"
+                          placeholder="+91 98765 43210"
                         />
+                        <p className="text-xs text-muted-foreground mt-1">Enter 10-digit mobile number (6-9 at start). +91 added automatically.</p>
                       </div>
                       <div>
                         <Label htmlFor="status">Status</Label>

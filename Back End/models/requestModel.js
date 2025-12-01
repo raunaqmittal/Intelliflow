@@ -15,7 +15,12 @@ const requestSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  description: String,
+  description: {
+    type: String,
+    required: [true, 'Please provide a description for the request'],
+    minlength: [20, 'Description must be at least 20 characters long'],
+    maxlength: [500, 'Description cannot exceed 500 characters']
+  },
   requirements: [String],
   // Departments involved in this request's workflow
   requiredDepartments: {

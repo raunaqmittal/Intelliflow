@@ -75,6 +75,37 @@ export default function AddEmployee() {
     setForm({ ...form, [key]: e.target.value })
   }
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remove all non-digits (including if user types +91 manually)
+    let value = e.target.value.replace(/\D/g, '')
+    
+    // Remove 91 prefix if user typed it manually (we'll add it back)
+    if (value.startsWith('91')) {
+      value = value.slice(2)
+    }
+    
+    // Limit to exactly 10 digits for Indian mobile number
+    value = value.slice(0, 10)
+    
+    // Store with 91 prefix only if user has entered some digits
+    const phoneValue = value ? '91' + value : ''
+    setForm({ ...form, phone: phoneValue })
+  }
+
+  const formatPhoneDisplay = (phone: string) => {
+    if (!phone) return ''
+    const digits = phone.replace(/\D/g, '')
+    
+    // Remove 91 prefix for display formatting
+    const number = digits.startsWith('91') ? digits.slice(2) : digits
+    
+    if (number) {
+      // Format as +91 XXXXX XXXXX
+      return `+91 ${number.slice(0, 5)} ${number.slice(5)}`
+    }
+    return ''
+  }
+
   const submit = async () => {
     if (!nextId) {
       toast({ title: 'Unable to assign new ID', description: 'Could not compute next employee_id', variant: 'destructive' })
@@ -82,6 +113,18 @@ export default function AddEmployee() {
     }
     if (!form.name || !form.email || !form.phone || !form.password || !form.passwordConfirm) {
       toast({ title: 'Missing fields', description: 'Name, email, phone and password are required', variant: 'destructive' })
+      return
+    }
+    // Validate phone number is exactly 12 digits (91 + 10 digits)
+    const phoneDigits = form.phone.replace(/\D/g, '')
+    if (phoneDigits.length !== 12 || !phoneDigits.startsWith('91')) {
+      toast({ title: 'Invalid phone number', description: 'Please enter a valid 10-digit Indian mobile number', variant: 'destructive' })
+      return
+    }
+    // Validate first digit after country code is 6-9
+    const actualNumber = phoneDigits.slice(2) // Remove 91 prefix
+    if (!/^[6-9]/.test(actualNumber)) {
+      toast({ title: 'Invalid phone number', description: 'Indian mobile numbers must start with 6, 7, 8, or 9', variant: 'destructive' })
       return
     }
     // Determine role from selection or custom input or fallback
@@ -165,8 +208,15 @@ export default function AddEmployee() {
               )}
             </div>
             <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" value={form.phone} onChange={handleChange('phone')} placeholder="+91 90000 00000" required />
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input 
+                id="phone" 
+                value={formatPhoneDisplay(form.phone)} 
+                onChange={handlePhoneChange} 
+                placeholder="+91 98765 43210" 
+                required 
+              />
+              <p className="text-xs text-muted-foreground mt-1">Enter 10-digit mobile number (6-9 at start). +91 added automatically.</p>
             </div>
             <div>
               <Label>Department</Label>

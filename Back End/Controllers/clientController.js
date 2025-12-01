@@ -91,6 +91,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
       filteredBody.otpExpires = undefined;
       filteredBody.otpAttempts = 0;
       filteredBody.otpLastSent = undefined;
+      filteredBody.otpPhone = undefined; // Clear phone OTP was sent to
     }
   }
   
@@ -142,11 +143,12 @@ exports.sendPhoneVerificationOTP = catchAsync(async (req, res, next) => {
   // Generate 6-digit OTP
   const otp = OTPService.generateOTP();
   
-  // Store hashed OTP in database
+  // Store hashed OTP in database along with the phone number it was sent to
   client.otpCode = OTPService.hashOTP(otp);
   client.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
   client.otpAttempts = 0;
   client.otpLastSent = Date.now();
+  client.otpPhone = client.phone; // Store phone number OTP was sent to
   await client.save({ validateBeforeSave: false });
 
   // Send OTP via SMS
@@ -178,7 +180,18 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
     return next(new AppError('Please provide the verification code', 400));
   }
 
-  const client = await Client.findById(req.user.id).select('+otpCode');
+  const client = await Client.findById(req.user.id).select('+otpCode +otpPhone');
+
+  // Check if phone number has changed since OTP was sent
+  if (client.otpPhone && client.phone !== client.otpPhone) {
+    // Phone changed - invalidate old OTP
+    client.otpCode = undefined;
+    client.otpExpires = undefined;
+    client.otpAttempts = 0;
+    client.otpPhone = undefined;
+    await client.save({ validateBeforeSave: false });
+    return next(new AppError('Phone number has changed. Please request a new verification code for your current number.', 400));
+  }
 
   // Verify OTP
   const isValid = OTPService.verifyOTP(

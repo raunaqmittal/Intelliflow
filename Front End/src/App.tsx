@@ -37,7 +37,7 @@ import ManagerProfile from "./pages/manager/Profile";
 import ProjectDetails from "./pages/manager/ProjectDetails";
 import ManagerRequests from "./pages/manager/Requests";
 import ManagerRequestDetails from "./pages/manager/RequestDetails";
-import AddEmployee from "./pages/manager/AddEmployee";
+import ManageEmployees from "./pages/manager/ManageEmployees";
 import AddClient from "./pages/manager/AddClient";
 
 // Common Pages
@@ -253,7 +253,7 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRole="manager">
                   <PortalLayout sidebar={<ManagerSidebar />}>
-                    <AddEmployee />
+                    <ManageEmployees />
                   </PortalLayout>
                 </ProtectedRoute>
               }

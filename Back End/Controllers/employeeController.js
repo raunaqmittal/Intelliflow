@@ -1,4 +1,5 @@
 const Employee = require('../models/employeeModel');
+const Task = require('../models/taskModel');
 const catchAsync = require('../Utilities/catchAsync');
 const AppError = require('../Utilities/appError');
 const OTPService = require('../Utilities/otp');
@@ -145,10 +146,53 @@ exports.updateEmployee = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteEmployee = catchAsync(async (req, res, next) => {
-  const employee = await Employee.findByIdAndDelete(req.params.id);
+  const employee = await Employee.findById(req.params.id);
   if (!employee) {
     return next(new AppError('No employee found with that ID', 404));
   }
+
+  // Check if the logged-in manager's department matches the employee's department
+  const manager = await Employee.findById(req.user.id);
+  const managerDepartment = (manager.approvesDepartments && manager.approvesDepartments.length > 0) 
+    ? manager.approvesDepartments[0] 
+    : manager.department;
+  
+  if (employee.department !== managerDepartment) {
+    return next(new AppError('You can only delete employees from your own department', 403));
+  }
+
+  // Check for pending tasks (status not 'Completed' or 'Done')
+  const pendingTasks = await Task.find({
+    $or: [
+      { assignedTo: employee.employee_id },
+      { assigned_to: employee.employee_id }
+    ],
+    status: { $nin: ['Completed', 'Done'] }
+  });
+
+  if (pendingTasks.length > 0) {
+    return next(new AppError(`Cannot delete employee with ${pendingTasks.length} pending task(s). Please reassign or complete these tasks first.`, 400));
+  }
+
+  // Delete the employee
+  await Employee.findByIdAndDelete(req.params.id);
+
+  // Remove employee from all task assignments (only where fields exist and are arrays)
+  await Task.updateMany(
+    {
+      $or: [
+        { assignedTo: employee.employee_id },
+        { assigned_to: employee.employee_id }
+      ]
+    },
+    { 
+      $pull: { 
+        assignedTo: employee.employee_id,
+        assigned_to: employee.employee_id
+      }
+    }
+  );
+
   res.status(204).json({
     status: 'success',
     data: null
@@ -174,6 +218,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
       filteredBody.otpExpires = undefined;
       filteredBody.otpAttempts = 0;
       filteredBody.otpLastSent = undefined;
+      filteredBody.otpPhone = undefined; // Clear phone OTP was sent to
     }
   }
   
@@ -226,11 +271,12 @@ exports.sendPhoneVerificationOTP = catchAsync(async (req, res, next) => {
   // Generate 6-digit OTP
   const otp = OTPService.generateOTP();
   
-  // Store hashed OTP in database
+  // Store hashed OTP in database along with the phone number it was sent to
   employee.otpCode = OTPService.hashOTP(otp);
   employee.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
   employee.otpAttempts = 0;
   employee.otpLastSent = Date.now();
+  employee.otpPhone = employee.phone; // Store phone number OTP was sent to
   await employee.save({ validateBeforeSave: false });
 
   // Send OTP via SMS
@@ -262,7 +308,18 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
     return next(new AppError('Please provide the verification code', 400));
   }
 
-  const employee = await Employee.findById(req.user.id).select('+otpCode');
+  const employee = await Employee.findById(req.user.id).select('+otpCode +otpPhone');
+
+  // Check if phone number has changed since OTP was sent
+  if (employee.otpPhone && employee.phone !== employee.otpPhone) {
+    // Phone changed - invalidate old OTP
+    employee.otpCode = undefined;
+    employee.otpExpires = undefined;
+    employee.otpAttempts = 0;
+    employee.otpPhone = undefined;
+    await employee.save({ validateBeforeSave: false });
+    return next(new AppError('Phone number has changed. Please request a new verification code for your current number.', 400));
+  }
 
   // Debug logging
   console.log('📱 Phone Verification Debug:');

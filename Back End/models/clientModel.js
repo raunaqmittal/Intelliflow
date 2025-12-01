@@ -62,6 +62,10 @@ const clientSchema = new mongoose.Schema({
     default: 0
   },
   otpLastSent: Date,
+  otpPhone: {
+    type: String,
+    select: false // Phone number OTP was sent to
+  },
   password: {
     type: String,
     required: [true, 'Please provide a password.'],

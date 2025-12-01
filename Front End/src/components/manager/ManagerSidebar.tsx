@@ -35,10 +35,10 @@ const navigationItems = [
     exact: true
   },
   {
-    title: "Add Employee",
+    title: "Manage Employees",
     url: "/manager/add-employee",
     icon: UserPlus,
-    description: "Create a new employee",
+    description: "Add or delete employees",
     exact: true
   },
   {

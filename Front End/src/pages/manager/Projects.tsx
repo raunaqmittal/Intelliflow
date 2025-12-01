@@ -65,7 +65,7 @@ export default function ManagerProjects() {
               <TableRow>
                 <TableHead>Project Name</TableHead>
                 <TableHead>Client</TableHead>
-                <TableHead>Framework</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -86,7 +86,7 @@ export default function ManagerProjects() {
                   <TableRow key={project.project_id}>
                     <TableCell className="font-medium">{project.project_title}</TableCell>
                     <TableCell>{project.client_name}</TableCell>
-                    <TableCell>{project.framework}</TableCell>
+                    <TableCell>{project.category}</TableCell>
                     <TableCell>
                       <StatusBadge status={project.status} variant="project" />
                     </TableCell>

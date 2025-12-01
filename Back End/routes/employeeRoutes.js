@@ -32,6 +32,6 @@ router
   .route('/:id')
   .get(employeeController.getEmployee)
   .patch(employeeController.updateEmployee)
-  .delete(employeeController.deleteEmployee);
+  .delete(authController.protect, authController.restrictTo('manager'), employeeController.deleteEmployee);
 
 module.exports = router;

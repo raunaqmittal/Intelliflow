@@ -784,13 +784,13 @@ I. PRODUCTION ENVIRONMENT SPECIFIC
     Expected: Generic error message, details logged server-side
     Risk: Stack traces leak to users
 
-[ ] TC-256: Phone uniqueness constraint enabled
+[ later] TC-256: Phone uniqueness constraint enabled
     Test: Two users with same phone in production
     Expected: MUST FAIL with duplicate error
     Risk: CRITICAL - Currently disabled in models
     Action Required: Uncomment lines in employeeModel.js:58, clientModel.js:30
 
-[ ] TC-257: Production Twilio credentials
+[ok ] TC-257: Production Twilio credentials
     Test: Send OTP in production
     Expected: SMS delivered via Twilio (not console log)
     Risk: OTP only logged, users don't receive SMS
@@ -803,22 +803,22 @@ I. PRODUCTION ENVIRONMENT SPECIFIC
 ------------------------------------------------------------------------------------
 J. PERFORMANCE AND SCALABILITY
 ------------------------------------------------------------------------------------
-[ ] TC-259: API response time under load
+[after deployment ] TC-259: API response time under load
     Test: 100 concurrent requests
     Expected: All requests complete within acceptable time (<2s)
     Risk: Slow response, timeout errors
 
-[ ] TC-260: Database query performance with large dataset
+[later ] TC-260: Database query performance with large dataset
     Test: 10,000+ employees/clients
     Expected: Queries use indexes, respond quickly
     Risk: Slow pagination, unindexed queries
 
-[ ] TC-261: Memory leak during long session
+[ later] TC-261: Memory leak during long session
     Test: Keep session active for 24+ hours
     Expected: Memory usage stable
     Risk: Memory leak, server crash
 
-[ ] TC-262: File upload size limit (if applicable)
+[not applicable ] TC-262: File upload size limit (if applicable)
     Test: Upload very large file
     Expected: Rejected with size limit error
     Risk: Server overwhelmed, DoS attack vector

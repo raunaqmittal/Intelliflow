@@ -23,6 +23,9 @@ const cors = require('cors');
 // Middlewares can also terminate the request-response cycle
 // Middlewares can also call the next middleware in the stack
 
+// Trust proxy - Required for Render, Heroku, and other platforms behind reverse proxies
+// This allows rate limiting and other features to work correctly with X-Forwarded-For headers
+app.set('trust proxy', true);
 
 // 1) MIDDLEWARES
 

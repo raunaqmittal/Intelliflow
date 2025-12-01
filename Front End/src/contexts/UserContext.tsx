@@ -88,10 +88,34 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const loginEmployee = async (email: string, password: string): Promise<UserRole> => {
     setLoading(true);
     try {
-      // Prevent multi-tab login: Block ANY second login attempt
+      // Validate existing token before blocking login
       const existingToken = localStorage.getItem('authToken');
+      
       if (existingToken) {
-        throw new Error('Already logged in. Please use the existing tab or log out first.');
+        // Check if the existing token is still valid
+        try {
+          await api.get('/employees/me');
+          // Token is valid - user IS already logged in
+          throw new Error('Already logged in in another tab. Please use that tab or logout first.');
+        } catch (error: any) {
+          // Token is invalid/expired - clear it and allow login
+          if (error?.response?.status === 401 || error?.response?.status === 403) {
+            console.log('Clearing expired/invalid token');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('employeeProfile');
+            localStorage.removeItem('lastUserRole');
+            // Continue with login below
+          } else if (error?.message?.includes('Already logged in')) {
+            // This is our intentional error from above - rethrow it
+            throw error;
+          } else {
+            // Network error or other issue - still allow login attempt
+            console.warn('Token validation failed, allowing login:', error?.message);
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('employeeProfile');
+            localStorage.removeItem('lastUserRole');
+          }
+        }
       }
 
       const res = await api.post('/employees/login', { email, password });
@@ -116,10 +140,35 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const loginClient = async (email: string, password: string): Promise<UserRole> => {
     setLoading(true);
     try {
-      // Prevent multi-tab login: Block ANY second login attempt
+      // Validate existing token before blocking login
       const existingToken = localStorage.getItem('authToken');
+      
       if (existingToken) {
-        throw new Error('Already logged in. Please use the existing tab or log out first.');
+        // Check if the existing token is still valid
+        try {
+          // Try to fetch current user data (works for both employees and clients)
+          await api.get('/employees/me').catch(() => api.get('/clients/me'));
+          // Token is valid - user IS already logged in
+          throw new Error('Already logged in in another tab. Please use that tab or logout first.');
+        } catch (error: any) {
+          // Token is invalid/expired - clear it and allow login
+          if (error?.response?.status === 401 || error?.response?.status === 403) {
+            console.log('Clearing expired/invalid token');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('employeeProfile');
+            localStorage.removeItem('lastUserRole');
+            // Continue with login below
+          } else if (error?.message?.includes('Already logged in')) {
+            // This is our intentional error from above - rethrow it
+            throw error;
+          } else {
+            // Network error or other issue - still allow login attempt
+            console.warn('Token validation failed, allowing login:', error?.message);
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('employeeProfile');
+            localStorage.removeItem('lastUserRole');
+          }
+        }
       }
 
       const res = await api.post('/clients/login', { email, password });

@@ -60,10 +60,10 @@ const navigationItems = [
 export function ManagerSidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate();
-  const { setUserRole } = useUser();
+  const { logout } = useUser();
 
   const handleLogout = () => {
-    setUserRole(null);
+    logout();
     navigate('/');
   };
 

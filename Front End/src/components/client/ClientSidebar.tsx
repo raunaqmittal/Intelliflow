@@ -48,10 +48,10 @@ export function ClientSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { setUserRole } = useUser();
+  const { logout } = useUser();
 
   const handleLogout = () => {
-    setUserRole(null);
+    logout();
     navigate('/');
   };
 

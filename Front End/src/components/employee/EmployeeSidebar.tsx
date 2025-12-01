@@ -47,11 +47,11 @@ export function EmployeeSidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
   const navigate = useNavigate();
-  const { setUserRole } = useUser();
+  const { logout } = useUser();
   const currentPath = location.pathname
 
   const handleLogout = () => {
-    setUserRole(null);
+    logout();
     navigate('/');
   };
 

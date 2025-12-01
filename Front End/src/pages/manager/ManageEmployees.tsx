@@ -12,6 +12,16 @@ import api from '@/lib/api'
 import { loadEmployees } from '@/utils/dataParser'
 import { useUser } from '@/contexts/UserContext'
 
+interface Employee {
+  _id: string;
+  employee_id: number;
+  name: string;
+  email: string;
+  role?: string;
+  department: string;
+  availability?: string;
+}
+
 export default function ManageEmployees() {
   const { employee: manager } = useUser()
   const { toast } = useToast()
@@ -40,7 +50,7 @@ export default function ManageEmployees() {
   const [submitting, setSubmitting] = useState(false)
 
   // Delete employee state
-  const [departmentEmployees, setDepartmentEmployees] = useState<any[]>([])
+  const [departmentEmployees, setDepartmentEmployees] = useState<Employee[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -135,7 +145,7 @@ export default function ManageEmployees() {
     try {
       const response = await api.get('/employees')
       const allEmployees = response.data.data.employees
-      const filtered = allEmployees.filter((e: any) => e.department === defaultDept)
+      const filtered = allEmployees.filter((e: Employee) => e.department === defaultDept)
       setDepartmentEmployees(filtered)
     } catch (e) {
       toast({ title: 'Error', description: 'Failed to load employees', variant: 'destructive' })

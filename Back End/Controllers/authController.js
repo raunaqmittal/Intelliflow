@@ -17,15 +17,8 @@ const signToken = id => {
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
 
-  const cookieOptions = {
-    // converting days to milliseconds
-    expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000),
-    httpOnly: true, // Prevent XSS attacks by making cookie inaccessible to JavaScript
-    secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-    sameSite: 'strict' // Prevent CSRF attacks
-  };
-
-  res.cookie('jwt', token, cookieOptions);
+  // No cookies - using Authorization header only (immune to CSRF attacks)
+  // Frontend stores token in localStorage and sends via Authorization header
 
   //removing password from output
   user.password = undefined;
@@ -201,12 +194,10 @@ exports.loginClient = catchAsync(async (req, res, next) => {
   createSendToken(client, 200, res);
 });
 
-// Logout - clear httpOnly cookie
+// Logout - client-side will clear localStorage
 exports.logout = catchAsync(async (req, res, next) => {
-  res.cookie('jwt', 'loggedout', {
-    expires: new Date(Date.now() + 10 * 1000), // 10 seconds
-    httpOnly: true
-  });
+  // No server-side cleanup needed for token-based auth
+  // Frontend removes token from localStorage
   
   res.status(200).json({
     status: 'success',

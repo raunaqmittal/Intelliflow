@@ -35,7 +35,7 @@ app.use(helmet());
 // Middleware to parse JSON bodies
 app.use(cors({
   origin: process.env.FRONTEND_URL, // Allow requests only from frontend
-  credentials: true // Allow cookies to be sent with requests
+  credentials: false // Not using cookies - using Authorization header
 }));
 app.use(express.json({ limit: '10kb' })); // Body limit is 10kb
 

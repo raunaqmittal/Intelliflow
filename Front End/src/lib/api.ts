@@ -5,7 +5,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export const api = axios.create({
   baseURL,
-  withCredentials: true, // Enable sending cookies with requests (for httpOnly cookies)
+  withCredentials: false, // Not using cookies - using Authorization header instead
   timeout: 15000 // 15 second timeout to prevent indefinite loading
 });
 

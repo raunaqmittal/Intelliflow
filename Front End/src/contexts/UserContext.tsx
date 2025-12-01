@@ -38,6 +38,37 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [userRole]);
 
+  // Listen for storage changes from other tabs (detects when another tab logs in)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      // If authToken changed in another tab
+      if (e.key === 'authToken') {
+        const newToken = e.newValue;
+        const oldToken = token;
+        
+        // If token was removed (logout in another tab)
+        if (!newToken && oldToken) {
+          console.log('🔒 Logged out in another tab, logging out here too');
+          logout();
+          window.location.href = '/login'; // Redirect to login
+          return;
+        }
+        
+        // If token changed (different user logged in another tab)
+        if (newToken && newToken !== oldToken) {
+          console.log('⚠️ Different user logged in another tab, refreshing session');
+          // Force logout and reload to prevent data mismatch
+          logout();
+          alert('Another user has logged in. This tab will now reload.');
+          window.location.reload();
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [token]);
+
   // On mount, hydrate role and token
   useEffect(() => {
     setLoading(true);

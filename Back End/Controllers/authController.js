@@ -121,13 +121,19 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
     await employee.save({ validateBeforeSave: false });
 
     // Send OTP via SMS
-    console.log(`📱 Sending login OTP to ${employee.phone}...`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📱 Sending login OTP to ${employee.phone}...`);
+    }
     const smsResult = await OTPService.sendSMS(employee.phone, otp);
-    console.log('SMS Result:', smsResult);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('SMS Result:', smsResult);
+    }
     
     if (!smsResult.success && !smsResult.devMode) {
       // SMS failed, clear OTP
-      console.error('❌ Failed to send login OTP');
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Failed to send login OTP');
+      }
       employee.otpCode = undefined;
       employee.otpExpires = undefined;
       await employee.save({ validateBeforeSave: false });
@@ -135,7 +141,9 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
       return next(new AppError('Failed to send OTP. Please try again or contact support.', 500));
     }
     
-    console.log('✅ Login OTP sent successfully');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Login OTP sent successfully');
+    }
 
     return res.status(200).json({
       status: 'otp_required',
@@ -181,13 +189,19 @@ exports.loginClient = catchAsync(async (req, res, next) => {
     await client.save({ validateBeforeSave: false });
 
     // Send OTP via SMS
-    console.log(`📱 Sending login OTP to ${client.phone}...`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📱 Sending login OTP to ${client.phone}...`);
+    }
     const smsResult = await OTPService.sendSMS(client.phone, otp);
-    console.log('SMS Result:', smsResult);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('SMS Result:', smsResult);
+    }
     
     if (!smsResult.success && !smsResult.devMode) {
       // SMS failed, clear OTP
-      console.error('❌ Failed to send login OTP');
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Failed to send login OTP');
+      }
       client.otpCode = undefined;
       client.otpExpires = undefined;
       await client.save({ validateBeforeSave: false });
@@ -195,7 +209,9 @@ exports.loginClient = catchAsync(async (req, res, next) => {
       return next(new AppError('Failed to send OTP. Please try again or contact support.', 500));
     }
     
-    console.log('✅ Login OTP sent successfully');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Login OTP sent successfully');
+    }
 
     return res.status(200).json({
       status: 'otp_required',

@@ -301,16 +301,24 @@ exports.sendPhoneVerificationOTP = catchAsync(async (req, res, next) => {
   await employee.save({ validateBeforeSave: false });
 
   // Send OTP via SMS
-  console.log(`📱 Sending phone verification OTP to ${employee.phone}...`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📱 Sending phone verification OTP to ${employee.phone}...`);
+  }
   const smsResult = await OTPService.sendSMS(employee.phone, otp);
-  console.log('SMS Result:', smsResult);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('SMS Result:', smsResult);
+  }
   
   if (!smsResult.success && !smsResult.devMode) {
-    console.error('❌ Failed to send phone verification OTP');
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Failed to send phone verification OTP');
+    }
     return next(new AppError('Failed to send verification code. Please try again.', 500));
   }
   
-  console.log('✅ Phone verification OTP sent successfully');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ Phone verification OTP sent successfully');
+  }
 
   res.status(200).json({
     status: 'success',
@@ -343,11 +351,13 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
   }
 
   // Debug logging
-  console.log('📱 Phone Verification Debug:');
-  console.log('Provided OTP:', otp);
-  console.log('Stored OTP Hash:', employee.otpCode);
-  console.log('OTP Expires:', employee.otpExpires);
-  console.log('OTP Attempts:', employee.otpAttempts);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📱 Phone Verification Debug:');
+    console.log('Provided OTP:', otp);
+    console.log('Stored OTP Hash:', employee.otpCode);
+    console.log('OTP Expires:', employee.otpExpires);
+    console.log('OTP Attempts:', employee.otpAttempts);
+  }
 
   // Verify OTP
   const isValid = OTPService.verifyOTP(
@@ -357,7 +367,9 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
     employee.otpAttempts
   );
   
-  console.log('Validation Result:', isValid);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Validation Result:', isValid);
+  }
 
   if (!isValid.valid) {
     if (isValid.reason === 'expired') {

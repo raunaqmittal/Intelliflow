@@ -58,10 +58,14 @@ class OTPService {
         to: phoneNumber
       });
 
-      console.log(`✅ OTP sent to ${phoneNumber}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ OTP sent to ${phoneNumber}`);
+      }
       return { success: true };
     } catch (error) {
-      console.error('❌ SMS send error:', error.message);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ SMS send error:', error.message);
+      }
       return { 
         success: false, 
         error: error.message 

@@ -13,14 +13,18 @@ const app = require('./app');
 mongoose.connect(process.env.DATABASE, {
   // Removed deprecated options
 }).then(() => {
-  console.log('DB connection successful');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('DB connection successful');
+  }
 }).catch(err => {
   console.error('DB connection error:', err);
 });
 
 const port = process.env.PORT || 3000;
 const server = app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Server is running on port ${port}`);
+  }
 });
 
 process.on('unhandledRejection', err => {

@@ -60,7 +60,9 @@ const updateAllProjectStatuses = async () => {
       const result = await updateProjectStatusIfComplete(project._id);
       if (result.updated) {
         updatedCount++;
-        console.log(`✓ ${result.message}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✓ ${result.message}`);
+        }
       }
     }
 

@@ -37,7 +37,10 @@ const sendErrorProd = (err, res) => {
   });
 }else{
   // Programming or other unknown error: don't leak error details
-  console.error('ERROR 💥', err);
+  // Only log in development to avoid performance issues in production
+  if (process.env.NODE_ENV === 'development') {
+    console.error('ERROR 💥', err);
+  }
   res.status(500).json({
     status: 'error',
     message: 'Something went very wrong!'

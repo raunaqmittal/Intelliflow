@@ -173,16 +173,24 @@ exports.sendPhoneVerificationOTP = catchAsync(async (req, res, next) => {
   await client.save({ validateBeforeSave: false });
 
   // Send OTP via SMS
-  console.log(`📱 Sending phone verification OTP to ${client.phone}...`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📱 Sending phone verification OTP to ${client.phone}...`);
+  }
   const smsResult = await OTPService.sendSMS(client.phone, otp);
-  console.log('SMS Result:', smsResult);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('SMS Result:', smsResult);
+  }
   
   if (!smsResult.success && !smsResult.devMode) {
-    console.error('❌ Failed to send phone verification OTP');
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Failed to send phone verification OTP');
+    }
     return next(new AppError('Failed to send verification code. Please try again.', 500));
   }
   
-  console.log('✅ Phone verification OTP sent successfully');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ Phone verification OTP sent successfully');
+  }
 
   res.status(200).json({
     status: 'success',

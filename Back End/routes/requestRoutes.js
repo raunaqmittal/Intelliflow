@@ -8,6 +8,8 @@ const router = express.Router();
 router.use(authController.protect);
 
 // Client endpoints
+router.get('/my-requests', requestController.getMyRequests); // Client views their own requests
+
 router
   .route('/')
   .get(requestController.getAllRequests) // Get all requests (filtered by role)

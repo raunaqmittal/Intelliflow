@@ -34,6 +34,26 @@ const expandList = (list) => (Array.isArray(list) ? list : [])
   .flatMap(expandAliases)
   .map(normalizeDept);
 
+// Get client's own requests (client-only endpoint)
+exports.getMyRequests = catchAsync(async (req, res, next) => {
+  // Ensure user is a client
+  if (req.user.role && req.user.role !== 'client') {
+    return next(new AppError('This endpoint is for clients only', 403));
+  }
+
+  const requests = await Request.find({ client: req.user.id })
+    .select('title requestType status createdAt updatedAt')
+    .sort('-createdAt');
+
+  res.status(200).json({
+    status: 'success',
+    results: requests.length,
+    data: {
+      requests
+    }
+  });
+});
+
 // Get all requests (filtered by role)
 exports.getAllRequests = catchAsync(async (req, res, next) => {
   let filter = {};

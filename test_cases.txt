@@ -826,22 +826,27 @@ J. PERFORMANCE AND SCALABILITY
 ------------------------------------------------------------------------------------
 K. DEPARTMENT WORKFLOW SPECIFIC
 ------------------------------------------------------------------------------------
-[ ] TC-263: Request rejected by all departments
+[ok] TC-263: Request rejected by all departments
     Test: All departments reject request
     Expected: Request marked as rejected, client notified
     Risk: Request stuck in limbo, no final status
+    Implementation: 
+      - Feature 1: Manager can manually finalize rejection via existing /requests/:id/reject endpoint
+      - Feature 2: Client portal "My Requests" page shows all request statuses
+      - Location: Front End/src/pages/client/MyRequests.tsx, RequestDetails.tsx
+      - Backend: GET /requests/my-requests endpoint (requestController.js)
 
-[ ] TC-264: Manager removes department while request pending
+[later ] TC-264: Manager removes department while request pending
     Test: Request pending -> Manager department changed
     Expected: Existing approvals persist
     Risk: Orphaned approval, unable to modify
 
-[ ] TC-265: Circular approval dependencies
+[ later] TC-265: Circular approval dependencies
     Test: Department A waits for B, B waits for A
     Expected: System detects and prevents deadlock
     Risk: Requests never complete
 
-[ ] TC-266: Request approved then rejected by same manager
+[ later] TC-266: Request approved then rejected by same manager
     Test: Approve -> Reject for same department
     Expected: Rejection state persists
     Risk: State flip-flops, inconsistent data
@@ -849,14 +854,14 @@ K. DEPARTMENT WORKFLOW SPECIFIC
 ------------------------------------------------------------------------------------
 L. CRITICAL PRODUCTION READINESS ISSUES
 ------------------------------------------------------------------------------------
-[!] CRITICAL TC-267: Phone uniqueness MUST be enabled in production
+[later] CRITICAL TC-267: Phone uniqueness MUST be enabled in production
     Current State: DISABLED in both employeeModel.js and clientModel.js
     Action Required: 
       - employeeModel.js line 58: Uncomment "unique: true"
       - clientModel.js line 30: Uncomment "unique: true"
     Risk: Multiple users can register with same phone number
 
-[!] CRITICAL TC-268: Twilio account upgrade for production
+[later] CRITICAL TC-268: Twilio account upgrade for production
     Current State: Trial account with verified number restrictions
     Action Required: Upgrade to paid Twilio account
     Risk: OTP SMS not sent to unverified numbers

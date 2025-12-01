@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutDashboard, FolderKanban, PlusCircle, User, Menu, X, LogOut } from "lucide-react";
+import { LayoutDashboard, FolderKanban, PlusCircle, User, Menu, X, LogOut, FileText } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,13 @@ const navigationItems = [
     url: "/client/submit",
     icon: PlusCircle,
     description: "Start a New Project",
+    exact: true
+  },
+  {
+    title: "My Requests",
+    url: "/client/my-requests",
+    icon: FileText,
+    description: "View Request Status",
     exact: true
   },
   {

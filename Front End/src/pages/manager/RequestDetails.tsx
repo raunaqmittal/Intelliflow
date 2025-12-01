@@ -255,6 +255,22 @@ export default function ManagerRequestDetails() {
     }
   };
 
+  const finalizeRejection = async () => {
+    if (!id) return;
+    setBusy(true);
+    try {
+      await api.post(`/requests/${id}/reject`);
+      toast({ title: 'Request rejected', description: 'The request has been finalized as rejected.' });
+      navigate('/manager/requests');
+    } catch (e: unknown) {
+      const axiosErr = e as { response?: { data?: { message?: string } } };
+      const msg = axiosErr?.response?.data?.message || 'Failed to finalize rejection';
+      toast({ title: 'Action failed', description: msg, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const approveMyDepartment = async () => {
     if (!id || !data) return;
     setBusy(true);
@@ -362,8 +378,10 @@ export default function ManagerRequestDetails() {
   const canGenerate = data.status === 'submitted';
   const hasWorkflow = !!data.generatedWorkflow?.taskBreakdown?.length;
   const allDeptsApproved = (data.approvalsByDepartment || []).every(d => d.approved);
+  const allDeptsRejected = (data.approvalsByDepartment || []).length > 0 && (data.approvalsByDepartment || []).every(d => d.rejected);
   const allTasksAssigned = (data.generatedWorkflow?.taskBreakdown || []).every(t => (t.assignedEmployees && t.assignedEmployees.length > 0));
   const canApprove = (data.status === 'workflow_generated' || data.status === 'under_review') && allDeptsApproved && allTasksAssigned;
+  const canFinalizeReject = (data.status === 'workflow_generated' || data.status === 'under_review') && allDeptsRejected;
   const canReject = canApprove || data.status === 'submitted';
   const myPendingDepts = (data.approvalsByDepartment || [])
     .filter(d => !d.approved && !d.rejected && managerCanActForTeam(d.department))
@@ -480,6 +498,11 @@ export default function ManagerRequestDetails() {
             {canApprove && (
               <Button variant="default" onClick={approve} disabled={busy}>
                 <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
+              </Button>
+            )}
+            {canFinalizeReject && (
+              <Button variant="destructive" onClick={finalizeRejection} disabled={busy}>
+                <Ban className="h-4 w-4 mr-2" /> Finalize Rejection
               </Button>
             )}
             {canReject && (

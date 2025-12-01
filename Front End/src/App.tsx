@@ -20,6 +20,8 @@ import ClientProjects from "./pages/client/Projects";
 import ClientProjectDetails from "./pages/client/ProjectDetails";
 import ClientSubmitRequest from "./pages/client/SubmitRequest";
 import ClientProfile from "./pages/client/Profile";
+import MyRequests from "./pages/client/MyRequests";
+import RequestDetails from "./pages/client/RequestDetails";
 
 // Employee Portal Pages
 import EmployeeDashboard from "./pages/employee/Dashboard";
@@ -110,6 +112,26 @@ const App = () => (
                 <ProtectedRoute allowedRole="client">
                   <PortalLayout sidebar={<ClientSidebar />}>
                     <ClientSubmitRequest />
+                  </PortalLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/my-requests"
+              element={
+                <ProtectedRoute allowedRole="client">
+                  <PortalLayout sidebar={<ClientSidebar />}>
+                    <MyRequests />
+                  </PortalLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/requests/:id"
+              element={
+                <ProtectedRoute allowedRole="client">
+                  <PortalLayout sidebar={<ClientSidebar />}>
+                    <RequestDetails />
                   </PortalLayout>
                 </ProtectedRoute>
               }

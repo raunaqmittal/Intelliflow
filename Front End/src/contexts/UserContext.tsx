@@ -69,55 +69,59 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [token]);
 
-  // On mount, hydrate role and token
+  // On mount, hydrate role and token, and validate existing tokens
   useEffect(() => {
-    setLoading(true);
-    const storedRole = getLastUsedRole();
-    const storedToken = localStorage.getItem('authToken');
-    setUserRole(storedRole);
-    setToken(storedToken);
-    // If we had stored a minimal employee profile, hydrate it
-    const storedEmp = localStorage.getItem('employeeProfile');
-    if (storedEmp) {
-      try { setEmployee(JSON.parse(storedEmp)); } catch { /* noop */ }
-    }
-    setLoading(false);
+    const initializeAuth = async () => {
+      setLoading(true);
+      
+      const storedToken = localStorage.getItem('authToken');
+      
+      // If there's an existing token, validate it
+      if (storedToken) {
+        try {
+          // Try to validate the token by calling /me endpoint
+          await api.get('/employees/me').catch(() => api.get('/clients/me'));
+          // Token is valid - keep it
+          console.log('✅ Existing session validated');
+        } catch (error: any) {
+          // Token is invalid/expired - clear it silently
+          if (error?.response?.status === 401 || error?.response?.status === 403) {
+            console.log('🧹 Clearing expired token from previous session');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('employeeProfile');
+            localStorage.removeItem('lastUserRole');
+            setToken(null);
+            setUserRole(null);
+            setEmployee(null);
+            setLoading(false);
+            return;
+          }
+          // Network error or other issue - keep token for now
+          console.log('⚠️ Could not validate token, keeping for now');
+        }
+      }
+      
+      // Hydrate state from localStorage
+      const storedRole = getLastUsedRole();
+      setUserRole(storedRole);
+      setToken(storedToken);
+      
+      // If we had stored a minimal employee profile, hydrate it
+      const storedEmp = localStorage.getItem('employeeProfile');
+      if (storedEmp) {
+        try { setEmployee(JSON.parse(storedEmp)); } catch { /* noop */ }
+      }
+      
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   // Auth actions
   const loginEmployee = async (email: string, password: string): Promise<UserRole> => {
     setLoading(true);
     try {
-      // Validate existing token before blocking login
-      const existingToken = localStorage.getItem('authToken');
-      
-      if (existingToken) {
-        // Check if the existing token is still valid
-        try {
-          await api.get('/employees/me');
-          // Token is valid - user IS already logged in
-          throw new Error('Already logged in in another tab. Please use that tab or logout first.');
-        } catch (error: any) {
-          // Token is invalid/expired - clear it and allow login
-          if (error?.response?.status === 401 || error?.response?.status === 403) {
-            console.log('Clearing expired/invalid token');
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('employeeProfile');
-            localStorage.removeItem('lastUserRole');
-            // Continue with login below
-          } else if (error?.message?.includes('Already logged in')) {
-            // This is our intentional error from above - rethrow it
-            throw error;
-          } else {
-            // Network error or other issue - still allow login attempt
-            console.warn('Token validation failed, allowing login:', error?.message);
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('employeeProfile');
-            localStorage.removeItem('lastUserRole');
-          }
-        }
-      }
-
       const res = await api.post('/employees/login', { email, password });
       const tok = res.data?.token as string;
       const user = res.data?.data?.user;
@@ -140,37 +144,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const loginClient = async (email: string, password: string): Promise<UserRole> => {
     setLoading(true);
     try {
-      // Validate existing token before blocking login
-      const existingToken = localStorage.getItem('authToken');
-      
-      if (existingToken) {
-        // Check if the existing token is still valid
-        try {
-          // Try to fetch current user data (works for both employees and clients)
-          await api.get('/employees/me').catch(() => api.get('/clients/me'));
-          // Token is valid - user IS already logged in
-          throw new Error('Already logged in in another tab. Please use that tab or logout first.');
-        } catch (error: any) {
-          // Token is invalid/expired - clear it and allow login
-          if (error?.response?.status === 401 || error?.response?.status === 403) {
-            console.log('Clearing expired/invalid token');
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('employeeProfile');
-            localStorage.removeItem('lastUserRole');
-            // Continue with login below
-          } else if (error?.message?.includes('Already logged in')) {
-            // This is our intentional error from above - rethrow it
-            throw error;
-          } else {
-            // Network error or other issue - still allow login attempt
-            console.warn('Token validation failed, allowing login:', error?.message);
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('employeeProfile');
-            localStorage.removeItem('lastUserRole');
-          }
-        }
-      }
-
       const res = await api.post('/clients/login', { email, password });
       const tok = res.data?.token as string;
       if (tok) {

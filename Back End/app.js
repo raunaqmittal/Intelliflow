@@ -25,7 +25,8 @@ const cors = require('cors');
 
 // Trust proxy - Required for Render, Heroku, and other platforms behind reverse proxies
 // This allows rate limiting and other features to work correctly with X-Forwarded-For headers
-app.set('trust proxy', true);
+// Using 1 instead of true to trust only the first proxy (Render's load balancer) for security
+app.set('trust proxy', 1);
 
 // 1) MIDDLEWARES
 

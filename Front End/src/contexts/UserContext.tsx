@@ -88,21 +88,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const loginEmployee = async (email: string, password: string): Promise<UserRole> => {
     setLoading(true);
     try {
-      // Option A: Check if another user is already logged in
+      // Prevent multi-tab login: Block ANY second login attempt
       const existingToken = localStorage.getItem('authToken');
-      const existingProfile = localStorage.getItem('employeeProfile');
-      
-      if (existingToken && existingProfile) {
-        try {
-          const existingUser = JSON.parse(existingProfile);
-          if (existingUser.email && existingUser.email !== email) {
-            // Different user is logged in - prevent login
-            throw new Error(`Another user (${existingUser.email}) is already logged in. Please log out first.`);
-          }
-        } catch (parseError) {
-          // If parse fails, continue with login (corrupted data)
-          console.warn('Could not parse existing profile, allowing login');
-        }
+      if (existingToken) {
+        throw new Error('Already logged in. Please use the existing tab or log out first.');
       }
 
       const res = await api.post('/employees/login', { email, password });
@@ -127,26 +116,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const loginClient = async (email: string, password: string): Promise<UserRole> => {
     setLoading(true);
     try {
-      // Option A: Check if another user is already logged in
+      // Prevent multi-tab login: Block ANY second login attempt
       const existingToken = localStorage.getItem('authToken');
-      const existingRole = localStorage.getItem('lastUserRole');
-      const existingProfile = localStorage.getItem('employeeProfile');
-      
-      if (existingToken && (existingRole || existingProfile)) {
-        // Another user is logged in (employee or client)
-        if (existingProfile) {
-          try {
-            const existingUser = JSON.parse(existingProfile);
-            if (existingUser.email && existingUser.email !== email) {
-              throw new Error(`Another user (${existingUser.email}) is already logged in. Please log out first.`);
-            }
-          } catch (parseError) {
-            console.warn('Could not parse existing profile, allowing login');
-          }
-        } else if (existingRole === 'client') {
-          // Different client might be logged in
-          throw new Error('Another user is already logged in. Please log out first.');
-        }
+      if (existingToken) {
+        throw new Error('Already logged in. Please use the existing tab or log out first.');
       }
 
       const res = await api.post('/clients/login', { email, password });

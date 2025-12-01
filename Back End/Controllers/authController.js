@@ -17,8 +17,8 @@ const signToken = id => {
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
 
-  // No cookies - using Authorization header only (immune to CSRF attacks)
-  // Frontend stores token in localStorage and sends via Authorization header
+  // Using localStorage + Authorization header (cross-domain compatible)
+  // No cookies needed - frontend stores token and sends via Authorization header
 
   //removing password from output
   user.password = undefined;
@@ -194,7 +194,7 @@ exports.loginClient = catchAsync(async (req, res, next) => {
   createSendToken(client, 200, res);
 });
 
-// Logout - client-side will clear localStorage
+// Logout - client handles token removal from localStorage
 exports.logout = catchAsync(async (req, res, next) => {
   // No server-side cleanup needed for token-based auth
   // Frontend removes token from localStorage

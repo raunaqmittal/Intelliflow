@@ -44,6 +44,10 @@ import AddClient from "./pages/manager/AddClient";
 
 // Common Pages
 import Login from "./pages/Login";
+import Home from "./pages/Home";
+import About from "./pages/About";
+import HowToUse from "./pages/HowToUse";
+import TestCredentials from "./pages/TestCredentials";
 import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -59,8 +63,11 @@ const App = () => (
       <UserProvider>
         <BrowserRouter>
           <Routes>
-            {/* Landing/Login Route */}
-            <Route path="/" element={<Login />} />
+            {/* Public/Landing Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/how-to-use" element={<HowToUse />} />
+            <Route path="/test-credentials" element={<TestCredentials />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />

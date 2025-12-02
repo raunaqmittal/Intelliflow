@@ -10,6 +10,8 @@ import { AxiosError } from 'axios';
 import api from '@/lib/api';
 import { Smartphone } from 'lucide-react';
 import { getErrorMessage, logError } from '@/utils/errorHandler';
+import { Header } from '@/components/landing/Header';
+import { Footer } from '@/components/landing/Footer';
 
 export default function Login() {
   const [selectedRole, setSelectedRole] = useState<UserRole>('employee');
@@ -101,14 +103,16 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20">
-      <Card className="w-full max-w-md mx-4">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-3xl font-bold">Intelliflow Portal</CardTitle>
-          <CardDescription>
-            {otpRequired ? 'Enter Verification Code' : 'Login as Client or Employee'}
-          </CardDescription>
-        </CardHeader>
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 py-12">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="text-3xl font-bold">Intelliflow Demo Portal</CardTitle>
+            <CardDescription>
+              {otpRequired ? 'Enter Verification Code' : 'Login as Client or Employee'}
+            </CardDescription>
+          </CardHeader>
         <CardContent className="space-y-4">
           {!otpRequired ? (
             <>
@@ -143,10 +147,22 @@ export default function Login() {
               <Button onClick={handleLogin} className="w-full" size="lg" disabled={loading || !email || !password}>
                 {loading ? 'Signing in...' : 'Sign in'}
               </Button>
-              <div className="text-sm text-muted-foreground text-center">
+
+              <div className="text-center">
+                <Link to="/test-credentials">
+                  <Button variant="outline" className="w-full" size="lg">
+                    Use Test Credentials for Login
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="text-sm text-muted-foreground text-center space-y-1">
+                <p className="text-xs bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
+                  <strong>Note:</strong> Only managers have access to sign up new users
+                </p>
                 <Link
                   to={`/forgot-password?role=${selectedRole}&email=${encodeURIComponent(email)}`}
-                  className="underline"
+                  className="underline block mt-2"
                 >
                   Forgot password?
                 </Link>
@@ -196,6 +212,8 @@ export default function Login() {
           )}
         </CardContent>
       </Card>
+      </div>
+      <Footer />
     </div>
   );
 }

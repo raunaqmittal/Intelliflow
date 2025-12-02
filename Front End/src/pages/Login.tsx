@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import type { UserRole } from '@/types';
 import { AxiosError } from 'axios';
 import api from '@/lib/api';
-import { Smartphone } from 'lucide-react';
+import { Smartphone, Info, X } from 'lucide-react';
 import { getErrorMessage, logError } from '@/utils/errorHandler';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
@@ -23,8 +23,14 @@ export default function Login() {
   const [otpCode, setOtpCode] = useState('');
   const [maskedPhone, setMaskedPhone] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const { loginEmployee, loginClient } = useUser();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Show welcome popup when component mounts
+    setShowWelcomePopup(true);
+  }, []);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -105,7 +111,60 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 py-12">
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 py-12 relative">
+        {/* Welcome Popup Notification */}
+        {showWelcomePopup && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-lg w-full p-6 relative animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <button
+                onClick={() => setShowWelcomePopup(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Info className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+                    Welcome to Intelliflow Demo Portal
+                  </h3>
+                  <div className="space-y-3 text-gray-700 dark:text-gray-300">
+                    <p className="flex items-start gap-2">
+                      <span className="text-blue-600 dark:text-blue-400 mt-1 flex-shrink-0">•</span>
+                      <span>To login, you must use <strong>test credentials</strong> provided on the Test Credentials page.</span>
+                    </p>
+                    <p className="flex items-start gap-2">
+                      <span className="text-blue-600 dark:text-blue-400 mt-1 flex-shrink-0">•</span>
+                      <span>To sign up a new user, sign in as a <strong>Manager</strong>. Only managers can sign up new users (this is part of our portal feature).</span>
+                    </p>
+                    <p className="flex items-start gap-2">
+                      <span className="text-amber-600 dark:text-amber-400 mt-1 flex-shrink-0">⚠</span>
+                      <span><strong>OTP Limitation:</strong> You can't use the OTP system for forgot password or 2FA for any other phone number, as we are using a trial Twilio account which requires manual addition of new numbers.</span>
+                    </p>
+                  </div>
+                  <div className="mt-6 flex gap-3">
+                    <Link to="/test-credentials" className="flex-1">
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                        View Test Credentials
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowWelcomePopup(false)}
+                      className="flex-1"
+                    >
+                      Got it
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <Card className="w-full max-w-md mx-4">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-3xl font-bold">Intelliflow Demo Portal</CardTitle>
@@ -150,7 +209,11 @@ export default function Login() {
 
               <div className="text-center">
                 <Link to="/test-credentials">
-                  <Button variant="outline" className="w-full" size="lg">
+                  <Button 
+                    variant="default" 
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold shadow-lg" 
+                    size="lg"
+                  >
                     Use Test Credentials for Login
                   </Button>
                 </Link>

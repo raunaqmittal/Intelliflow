@@ -58,6 +58,16 @@ exports.signupEmployee = catchAsync(async (req, res, next) => {
     assignedRole = req.body.role;
   }
   
+  // Auto-detect if the role is a manager role and set approver fields
+  const isManagerRole = /manager|lead|head|director|chief|supervisor/i.test(assignedRole);
+  const approverFields = isManagerRole ? {
+    isApprover: true,
+    approvesDepartments: req.body.department ? [req.body.department] : []
+  } : {
+    isApprover: false,
+    approvesDepartments: []
+  };
+  
   const newEmployee = await Employee.create({
     employee_id: req.body.employee_id,
     name: req.body.name,
@@ -69,7 +79,8 @@ exports.signupEmployee = catchAsync(async (req, res, next) => {
     skills: req.body.skills,
     availability: req.body.availability,
     phone: normalizePhone(req.body.phone),
-    phoneVerified: false // User must verify phone number
+    phoneVerified: false, // User must verify phone number
+    ...approverFields // Spread the auto-detected approver fields
   });
   createSendToken(newEmployee, 201, res);
 });

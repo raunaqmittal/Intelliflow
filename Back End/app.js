@@ -7,13 +7,13 @@ const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
-const fs = require('fs');
 const morgan = require('morgan');
 const employeeRouter = require('./routes/employeeRoutes');
 const clientRouter = require('./routes/clientRoutes');
 const requestRouter = require('./routes/requestRoutes');
 const projectRouter = require('./routes/projectRoutes');
 const taskRouter = require('./routes/taskRoutes');
+const diagnosticRouter = require('./routes/diagnosticRoutes');
 const AppError = require('./Utilities/appError');
 const globalErrorHandler = require('./Controllers/errorController');
 const cors = require('cors');
@@ -105,6 +105,9 @@ app.use('/api/v1/clients/forgotPassword', authLimiter);
 
 
 // 2) Setting up the routes
+
+// Diagnostic endpoint (temporary - for debugging email issues)
+app.use('/api/diagnostic', diagnosticRouter);
 
 app.use('/api/v1/employees', employeeRouter);
 app.use('/api/v1/clients', clientRouter);

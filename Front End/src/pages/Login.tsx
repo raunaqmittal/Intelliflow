@@ -24,6 +24,7 @@ export default function Login() {
   const [maskedPhone, setMaskedPhone] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [is2FALogin, setIs2FALogin] = useState(false);
   const { loginEmployee, loginClient } = useUser();
   const navigate = useNavigate();
 
@@ -35,12 +36,14 @@ export default function Login() {
   const handleLogin = async () => {
     setLoading(true);
     setError('');
+    setIs2FALogin(false);
     try {
       const endpoint = selectedRole === 'client' ? '/clients/login' : '/employees/login';
       const response = await api.post(endpoint, { email, password });
       
       // Check if OTP is required (2FA enabled)
       if (response.data.status === 'otp_required') {
+        setIs2FALogin(true);
         setOtpRequired(true);
         setMaskedPhone(response.data.maskedPhone || response.data.maskedEmail || '');
         setError('');
@@ -118,6 +121,7 @@ export default function Login() {
     setOtpCode('');
     setMaskedPhone('');
     setError('');
+    setIs2FALogin(false);
   };
 
   return (
@@ -216,7 +220,7 @@ export default function Login() {
               )}
 
               <Button onClick={handleLogin} className="w-full" size="lg" disabled={loading || !email || !password}>
-                {loading ? '⏳ Sending OTP...' : 'Sign in'}
+                {loading ? (is2FALogin ? '⏳ Sending OTP...' : 'Signing in...') : 'Sign in'}
               </Button>
 
               <div className="text-center">

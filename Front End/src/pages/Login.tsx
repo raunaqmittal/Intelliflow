@@ -158,7 +158,7 @@ export default function Login() {
                     </p>
                     <p className="flex items-start gap-2">
                       <span className="text-amber-600 dark:text-amber-400 mt-1 flex-shrink-0">⚠</span>
-                      <span><strong>Email Limitation:</strong> Due to Render.com free tier restrictions, email functionality (OTP for 2FA and password reset) is currently unavailable in production. Please use the provided test credentials or contact the administrator for assistance.</span>
+                      <span><strong>Email Limitation:</strong> Due to Render.com free tier restrictions and Twilio limitation, email functionality (OTP for 2FA and password reset) is currently unavailable in production and receiving OTP on phone number also not available as on Twilio trial account we need manual addition of new number.</span>
                     </p>
                   </div>
                   <div className="mt-6 flex gap-3">

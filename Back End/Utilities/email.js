@@ -5,6 +5,12 @@ let transporter = null;
 
 const getTransporter = () => {
     if (!transporter) {
+        // Verify environment variables are loaded
+        if (!process.env.EMAIL_HOST || !process.env.EMAIL_USERNAME || !process.env.EMAIL_PASSWORD) {
+            console.error('❌ Email configuration is incomplete. Please check environment variables.');
+            throw new Error('Email configuration is incomplete. Check environment variables.');
+        }
+
         transporter = nodemailer.createTransport({
             host: process.env.EMAIL_HOST,
             port: process.env.EMAIL_PORT,
@@ -38,6 +44,11 @@ const sendEmail = async options => {
             text: options.message
         };
         
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📨 Sending email to:', options.email);
+            console.log('📧 Subject:', options.subject);
+        }
+        
         // Send the email with timeout handling
         const info = await transporter.sendMail(mailOptions);
         
@@ -47,7 +58,11 @@ const sendEmail = async options => {
         
         return { success: true, messageId: info.messageId };
     } catch (error) {
-        console.error('❌ Email sending failed:', error.message);
+        console.error('❌ Email sending failed:');
+        console.error('  To:', options.email);
+        console.error('  Subject:', options.subject);
+        console.error('  Error:', error.message);
+        if (error.code) console.error('  Code:', error.code);
         throw error;
     }
 };

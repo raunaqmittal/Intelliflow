@@ -42,7 +42,7 @@ export default function Login() {
       // Check if OTP is required (2FA enabled)
       if (response.data.status === 'otp_required') {
         setOtpRequired(true);
-        setMaskedPhone(response.data.maskedPhone || '');
+        setMaskedPhone(response.data.maskedPhone || response.data.maskedEmail || '');
         setError('');
         setLoading(false);
         return;
@@ -216,7 +216,7 @@ export default function Login() {
               )}
 
               <Button onClick={handleLogin} className="w-full" size="lg" disabled={loading || !email || !password}>
-                {loading ? 'Signing in...' : 'Sign in'}
+                {loading ? '⏳ Sending OTP...' : 'Sign in'}
               </Button>
 
               <div className="text-center">

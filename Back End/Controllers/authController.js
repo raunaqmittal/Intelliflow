@@ -170,15 +170,15 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
         maskedDestination = OTPService.maskPhone(employee.phone);
       }
     } else if (employee.twoFactorMethod === 'email') {
-      // Send via Email only
-      try {
-        await OTPService.sendEmail(employee.email, otp);
-        otpSent = true;
-        sentMethod = 'email';
-        maskedDestination = OTPService.maskEmail(employee.email);
-      } catch (error) {
-        // Email send failed
-      }
+      // Send via Email only - respond immediately, send in background
+      otpSent = true;
+      sentMethod = 'email';
+      maskedDestination = OTPService.maskEmail(employee.email);
+      
+      // Send email in background (non-blocking)
+      OTPService.sendEmail(employee.email, otp).catch((error) => {
+        console.error('❌ Failed to send login OTP email:', error.message);
+      });
     }
     
     if (!otpSent) {
@@ -194,12 +194,12 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
     }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ Login OTP sent via: ${sentMethod}`);
+      console.log(`✅ Login OTP sending via: ${sentMethod}`);
     }
 
     return res.status(200).json({
       status: 'otp_required',
-      message: `OTP sent to your ${sentMethod}`,
+      message: `OTP being sent to your ${sentMethod}`,
       email: employee.email,
       maskedPhone: employee.twoFactorMethod === 'sms' ? OTPService.maskPhone(employee.phone) : undefined,
       maskedEmail: employee.twoFactorMethod === 'email' ? OTPService.maskEmail(employee.email) : undefined,
@@ -263,15 +263,15 @@ exports.loginClient = catchAsync(async (req, res, next) => {
         maskedDestination = OTPService.maskPhone(client.phone);
       }
     } else if (client.twoFactorMethod === 'email') {
-      // Send via Email only
-      try {
-        await OTPService.sendEmail(client.contact_email, otp);
-        otpSent = true;
-        sentMethod = 'email';
-        maskedDestination = OTPService.maskEmail(client.contact_email);
-      } catch (error) {
-        // Email send failed
-      }
+      // Send via Email only - respond immediately, send in background
+      otpSent = true;
+      sentMethod = 'email';
+      maskedDestination = OTPService.maskEmail(client.contact_email);
+      
+      // Send email in background (non-blocking)
+      OTPService.sendEmail(client.contact_email, otp).catch((error) => {
+        console.error('❌ Failed to send client login OTP email:', error.message);
+      });
     }
     
     if (!otpSent) {
@@ -287,12 +287,12 @@ exports.loginClient = catchAsync(async (req, res, next) => {
     }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ Client login OTP sent via: ${sentMethod}`);
+      console.log(`✅ Client login OTP sending via: ${sentMethod}`);
     }
 
     return res.status(200).json({
       status: 'otp_required',
-      message: `OTP sent to your ${sentMethod}`,
+      message: `OTP being sent to your ${sentMethod}`,
       email: client.contact_email,
       maskedPhone: client.twoFactorMethod === 'sms' ? OTPService.maskPhone(client.phone) : undefined,
       maskedEmail: client.twoFactorMethod === 'email' ? OTPService.maskEmail(client.contact_email) : undefined,
@@ -463,9 +463,14 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
       email: emailAddress,
       subject: 'Password Reset - Intelliflow',
       message
+    }).then(() => {
+      console.log(`✅ Password reset email sent successfully to ${emailAddress}`);
     }).catch(err => {
-      // Log error but don't fail the request since we already responded
-      console.error('Background email sending failed:', err.message);
+      // Log detailed error but don't fail the request since we already responded
+      console.error('❌ Background email sending failed:');
+      console.error('  Email:', emailAddress);
+      console.error('  Error:', err.message);
+      console.error('  Stack:', err.stack);
     });
 
     return;

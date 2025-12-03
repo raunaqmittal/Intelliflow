@@ -85,6 +85,10 @@ class OTPService {
       
       const message = `Your Intelliflow verification code is: ${otp}\n\nThis code is valid for ${process.env.OTP_EXPIRY_MINUTES || 5} minutes.\n\nIf you didn't request this code, please ignore this email.\n\nFor security reasons, do not share this code with anyone.`;
 
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📧 Attempting to send OTP email to ${email}...`);
+      }
+
       await sendEmail({
         email: email,
         subject: 'Your Intelliflow Verification Code',
@@ -92,13 +96,14 @@ class OTPService {
       });
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`✅ OTP email sent to ${email}`);
+        console.log(`✅ OTP email sent successfully to ${email}`);
       }
       return { success: true };
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Email send error:', error.message);
-      }
+      console.error('❌ OTP Email send error:');
+      console.error('  Recipient:', email);
+      console.error('  Error:', error.message);
+      if (error.stack) console.error('  Stack:', error.stack);
       return { 
         success: false, 
         error: error.message 

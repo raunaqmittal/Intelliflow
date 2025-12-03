@@ -368,12 +368,14 @@ exports.restrictTo = (...roles) => {
 };
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
+  const { email, method } = req.body; // method: 'sms' or 'email'
+
   // 1) Get user based on POSTed email (check Employee or Client)
-  let user = await Employee.findOne({ email: req.body.email });
+  let user = await Employee.findOne({ email: req.body.email }).select('+otpCode');
   let userType = 'employees';
   
   if (!user) {
-    user = await Client.findOne({ contact_email: req.body.email });
+    user = await Client.findOne({ contact_email: req.body.email }).select('+otpCode');
     userType = 'clients';
   }
   
@@ -382,16 +384,15 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   }
 
   const emailAddress = user.email || user.contact_email;
-  let otpSent = false;
-  let emailSent = false;
-  let smsError = null;
-  let emailError = null;
-  let otpEmailSent = false;
 
-  // ========== DUAL PATH: SEND BOTH OTP (via SMS + Email) AND EMAIL RESET LINK ==========
+  // ========== SINGLE PATH: SEND OTP VIA SMS *OR* EMAIL RESET LINK (USER CHOICE) ==========
 
-  // 2) Send OTP via SMS and Email if user has phone number
-  if (user.phone || emailAddress) {
+  if (method === 'sms') {
+    // SMS OTP PATH
+    if (!user.phone) {
+      return next(new AppError('No phone number registered with this account.', 400));
+    }
+
     // Rate limiting check
     if (!OTPService.canSendOTP(user.otpLastSent)) {
       return next(new AppError('Please wait before requesting another OTP', 429));
@@ -405,102 +406,75 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     user.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
     user.otpAttempts = 0;
     user.otpLastSent = Date.now();
-
-    // Send OTP via both SMS and Email
-    const otpResults = await OTPService.sendDualOTP(user.phone, emailAddress, otp);
-    
-    // Track SMS result
-    if (otpResults.sms.success || otpResults.sms.devMode) {
-      otpSent = true;
-    } else if (user.phone) {
-      smsError = otpResults.sms.error || 'Failed to send SMS';
-    }
-    
-    // Track Email OTP result
-    if (otpResults.email.success) {
-      otpEmailSent = true;
-      otpSent = true; // Mark OTP as sent if either method succeeded
-    } else if (emailAddress) {
-      // Don't set error yet, we'll try sending reset link next
-    }
-  }
-
-  // 3) Generate and send password reset token via email
-  const resetToken = user.createPasswordResetToken();
-  
-  // Save all changes (OTP and reset token)
-  await user.save({ validateBeforeSave: false });
-
-  // Construct reset URL using frontend URL from environment variable
-  const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const resetURL = `${frontendURL}/reset-password/${resetToken}`;
-  const message = `Forgot your password? You can reset it using any of these methods:\n\n1. Use the OTP sent to your phone${otpEmailSent ? ' and email' : ''} (if available)\n2. Click this link: ${resetURL}\n\nThe OTP and link are valid for ${process.env.OTP_EXPIRY_MINUTES || 5} minutes.\n\nIf you didn't request a password reset, please ignore this email!`;
-
-  // Send email (always attempt, regardless of phone)
-  try {
-    await sendEmail({
-      email: emailAddress,
-      subject: 'Password Reset - Intelliflow',
-      message
-    });
-    emailSent = true;
-  } catch (err) {
-    emailError = 'Failed to send email';
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Email error:', err);
-    }
-  }
-
-  // 4) Prepare response based on what was sent
-  const methods = [];
-  const messages = [];
-
-  if (otpSent) {
-    methods.push('otp');
-    messages.push(`OTP sent to ${OTPService.maskPhone(user.phone)}`);
-  }
-
-  if (emailSent) {
-    methods.push('email');
-    messages.push(`Reset link sent to ${emailAddress}`);
-  }
-
-  // If nothing was sent successfully, return error
-  if (!otpSent && !emailSent) {
-    // Clear the tokens since we couldn't deliver them
-    user.otpCode = undefined;
-    user.otpExpires = undefined;
-    user.passwordResetToken = undefined;
-    user.passwordResetExpires = undefined;
     await user.save({ validateBeforeSave: false });
+
+    // Send OTP via SMS only
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📱 Sending password reset OTP to ${user.phone}...`);
+    }
+    const smsResult = await OTPService.sendSMS(user.phone, otp);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('SMS Result:', smsResult);
+    }
     
-    return next(new AppError('Failed to send password reset. Please try again later.', 500));
+    if (!smsResult.success && !smsResult.devMode) {
+      // SMS failed, clear OTP
+      user.otpCode = undefined;
+      user.otpExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      return next(new AppError('Failed to send OTP. Please try again or use email reset.', 500));
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      method: 'sms',
+      message: 'OTP sent to your registered phone number',
+      maskedPhone: OTPService.maskPhone(user.phone),
+      expiresIn: process.env.OTP_EXPIRY_MINUTES || 5
+    });
+  } else {
+    // EMAIL RESET LINK PATH (default)
+    // Generate password reset token
+    const resetToken = user.createPasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Construct reset URL
+    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetURL = `${frontendURL}/reset-password/${resetToken}`;
+    const message = `Forgot your password? Click this link to reset it:\n\n${resetURL}\n\nThis link is valid for ${process.env.OTP_EXPIRY_MINUTES || 5} minutes.\n\nIf you didn't request a password reset, please ignore this email!`;
+
+    // Send email
+    try {
+      await sendEmail({
+        email: emailAddress,
+        subject: 'Password Reset - Intelliflow',
+        message
+      });
+
+      const response = {
+        status: 'success',
+        method: 'email',
+        message: 'Password reset link sent to your email'
+      };
+
+      // In development mode, include reset URL
+      if (process.env.NODE_ENV === 'development') {
+        response.debug = { resetURL };
+      }
+
+      return res.status(200).json(response);
+    } catch (err) {
+      // Email failed, clear reset token
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Email error:', err);
+      }
+      return next(new AppError('Failed to send email. Please try again later.', 500));
+    }
   }
-
-  // Success response
-  const response = {
-    status: 'success',
-    methods: methods,
-    message: messages.join(' and ')
-  };
-
-  if (otpSent) {
-    response.maskedPhone = OTPService.maskPhone(user.phone);
-    response.otpExpiresIn = process.env.OTP_EXPIRY_MINUTES || 5;
-  }
-
-  // In development mode, include additional debug info
-  if (process.env.NODE_ENV === 'development') {
-    response.debug = {
-      otpSent,
-      emailSent,
-      smsError,
-      emailError,
-      resetURL: emailSent ? resetURL : undefined
-    };
-  }
-
-  res.status(200).json(response);
 });
 
 

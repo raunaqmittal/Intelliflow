@@ -6,7 +6,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 export const api = axios.create({
   baseURL,
   withCredentials: false, // Not using cookies - using Authorization header from localStorage
-  timeout: 15000 // 15 second timeout to prevent indefinite loading
+  timeout: 25000 // 25 second timeout for deployed environment
 });
 
 // Attach Authorization header from localStorage if present

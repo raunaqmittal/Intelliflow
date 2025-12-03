@@ -41,21 +41,30 @@ export default function ForgotPassword() {
     setDevToken(null);
     try {
       const res = await api.post(`/${endpointBase}/forgotPassword`, { email });
-      const { message, resetToken, method: resetMethod, maskedPhone: phone } = res.data || {};
+      const { message, resetToken, method: resetMethod, methods, maskedPhone: phone, debug } = res.data || {};
       
-      setMethod(resetMethod);
+      // Check if OTP method is available (either single method or in methods array)
+      const hasOtp = resetMethod === 'otp' || (methods && methods.includes('otp'));
+      const hasEmail = resetMethod === 'email' || (methods && methods.includes('email'));
       
-      if (resetMethod === 'otp') {
+      if (hasOtp) {
         // OTP was sent via SMS
         setOtpSent(true);
         setMaskedPhone(phone || '');
-        toast({ title: 'OTP Sent', description: message || `OTP sent to ${phone}` });
-      } else {
-        // Email reset link sent
-        toast({ title: 'Email Sent', description: message || 'If an account exists for this email, you\'ll receive a reset link shortly.' });
-        if (resetToken) {
-          setDevToken(resetToken);
-        }
+        setMethod('otp');
+      } else if (hasEmail) {
+        setMethod('email');
+      }
+      
+      // Show success message
+      toast({ 
+        title: hasOtp && hasEmail ? 'OTP & Email Sent' : hasOtp ? 'OTP Sent' : 'Email Sent', 
+        description: message || 'Password reset information sent successfully.'
+      });
+      
+      // Development mode: show reset token if available
+      if (debug?.resetURL || resetToken) {
+        setDevToken(resetToken || debug?.resetURL);
       }
     } catch (err: unknown) {
       logError(err, 'Forgot Password Request');

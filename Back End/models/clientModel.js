@@ -44,6 +44,10 @@ const clientSchema = new mongoose.Schema({
     type: Boolean,
     default: false // Must verify phone before enabling 2FA
   },
+  emailVerified: {
+    type: Boolean,
+    default: false // Must verify email before enabling email 2FA
+  },
   // Two-Factor Authentication
   twoFactorEnabled: {
     type: Boolean,

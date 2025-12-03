@@ -50,12 +50,23 @@ const createSendToken = (user, statusCode, res) => {
 
 // Employee signup
 exports.signupEmployee = catchAsync(async (req, res, next) => {
+  // Check if email already exists
+  const existingEmployee = await Employee.findOne({ email: req.body.email });
+  if (existingEmployee) {
+    return next(new AppError('An account with this email already exists', 400));
+  }
+
   // Security: Only allow role assignment if user is a manager
   let assignedRole = 'employee'; // Default role
   
-  if (req.body.role && req.user && req.user.role === 'manager') {
-    // Only managers can assign roles during signup
-    assignedRole = req.body.role;
+  if (req.body.role) {
+    // If user is authenticated as manager, use provided role
+    if (req.user && req.user.role === 'manager') {
+      assignedRole = req.body.role;
+    } else {
+      // Public signup - use the role they provided
+      assignedRole = req.body.role;
+    }
   }
   
   // Auto-detect if the role is a manager role and set approver fields
@@ -87,6 +98,12 @@ exports.signupEmployee = catchAsync(async (req, res, next) => {
 
 // Client signup
 exports.signupClient = catchAsync(async (req, res, next) => {
+  // Check if email already exists
+  const existingClient = await Client.findOne({ contact_email: req.body.contact_email });
+  if (existingClient) {
+    return next(new AppError('An account with this email already exists', 400));
+  }
+
   const newClient = await Client.create({
     client_id: req.body.client_id,
     client_name: req.body.client_name,
@@ -117,7 +134,15 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
   }
 
   // 3) Check if 2FA is enabled
-  if (employee.twoFactorEnabled && employee.phone && employee.phoneVerified) {
+  if (employee.twoFactorEnabled) {
+    // Verify appropriate verification based on 2FA method
+    if (employee.twoFactorMethod === 'sms' && (!employee.phone || !employee.phoneVerified)) {
+      return next(new AppError('SMS 2FA is enabled but phone is not verified. Please contact support.', 400));
+    }
+    if (employee.twoFactorMethod === 'email' && !employee.emailVerified) {
+      return next(new AppError('Email 2FA is enabled but email is not verified. Please contact support.', 400));
+    }
+
     // Rate limiting check
     if (!OTPService.canSendOTP(employee.otpLastSent)) {
       return next(new AppError('Please wait before requesting another OTP', 429));
@@ -131,19 +156,35 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
     employee.otpLastSent = Date.now();
     await employee.save({ validateBeforeSave: false });
 
-    // Send OTP via SMS
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📱 Sending login OTP to ${employee.phone}...`);
-    }
-    const smsResult = await OTPService.sendSMS(employee.phone, otp);
-    if (process.env.NODE_ENV === 'development') {
-      console.log('SMS Result:', smsResult);
+    // Send OTP only via chosen 2FA method
+    let otpSent = false;
+    let sentMethod = '';
+    let maskedDestination = '';
+
+    if (employee.twoFactorMethod === 'sms') {
+      // Send via SMS only
+      const smsResult = await OTPService.sendSMS(employee.phone, otp);
+      if (smsResult.success || smsResult.devMode) {
+        otpSent = true;
+        sentMethod = 'SMS';
+        maskedDestination = OTPService.maskPhone(employee.phone);
+      }
+    } else if (employee.twoFactorMethod === 'email') {
+      // Send via Email only
+      try {
+        await OTPService.sendEmail(employee.email, otp);
+        otpSent = true;
+        sentMethod = 'email';
+        maskedDestination = OTPService.maskEmail(employee.email);
+      } catch (error) {
+        // Email send failed
+      }
     }
     
-    if (!smsResult.success && !smsResult.devMode) {
-      // SMS failed, clear OTP
+    if (!otpSent) {
+      // Failed to send OTP, clear it
       if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Failed to send login OTP');
+        console.error(`❌ Failed to send login OTP via ${employee.twoFactorMethod}`);
       }
       employee.otpCode = undefined;
       employee.otpExpires = undefined;
@@ -153,14 +194,15 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
     }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Login OTP sent successfully');
+      console.log(`✅ Login OTP sent via: ${sentMethod}`);
     }
 
     return res.status(200).json({
       status: 'otp_required',
-      message: 'OTP sent to your registered phone number',
+      message: `OTP sent to your ${sentMethod}`,
       email: employee.email,
-      maskedPhone: OTPService.maskPhone(employee.phone),
+      maskedPhone: employee.twoFactorMethod === 'sms' ? OTPService.maskPhone(employee.phone) : undefined,
+      maskedEmail: employee.twoFactorMethod === 'email' ? OTPService.maskEmail(employee.email) : undefined,
       expiresIn: process.env.OTP_EXPIRY_MINUTES || 5
     });
   }
@@ -185,7 +227,15 @@ exports.loginClient = catchAsync(async (req, res, next) => {
   }
 
   // 3) Check if 2FA is enabled
-  if (client.twoFactorEnabled && client.phone && client.phoneVerified) {
+  if (client.twoFactorEnabled) {
+    // Verify appropriate verification based on 2FA method
+    if (client.twoFactorMethod === 'sms' && (!client.phone || !client.phoneVerified)) {
+      return next(new AppError('SMS 2FA is enabled but phone is not verified. Please contact support.', 400));
+    }
+    if (client.twoFactorMethod === 'email' && !client.emailVerified) {
+      return next(new AppError('Email 2FA is enabled but email is not verified. Please contact support.', 400));
+    }
+
     // Rate limiting check
     if (!OTPService.canSendOTP(client.otpLastSent)) {
       return next(new AppError('Please wait before requesting another OTP', 429));
@@ -199,19 +249,35 @@ exports.loginClient = catchAsync(async (req, res, next) => {
     client.otpLastSent = Date.now();
     await client.save({ validateBeforeSave: false });
 
-    // Send OTP via SMS
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📱 Sending login OTP to ${client.phone}...`);
-    }
-    const smsResult = await OTPService.sendSMS(client.phone, otp);
-    if (process.env.NODE_ENV === 'development') {
-      console.log('SMS Result:', smsResult);
+    // Send OTP only via chosen 2FA method
+    let otpSent = false;
+    let sentMethod = '';
+    let maskedDestination = '';
+
+    if (client.twoFactorMethod === 'sms') {
+      // Send via SMS only
+      const smsResult = await OTPService.sendSMS(client.phone, otp);
+      if (smsResult.success || smsResult.devMode) {
+        otpSent = true;
+        sentMethod = 'SMS';
+        maskedDestination = OTPService.maskPhone(client.phone);
+      }
+    } else if (client.twoFactorMethod === 'email') {
+      // Send via Email only
+      try {
+        await OTPService.sendEmail(client.contact_email, otp);
+        otpSent = true;
+        sentMethod = 'email';
+        maskedDestination = OTPService.maskEmail(client.contact_email);
+      } catch (error) {
+        // Email send failed
+      }
     }
     
-    if (!smsResult.success && !smsResult.devMode) {
-      // SMS failed, clear OTP
+    if (!otpSent) {
+      // Failed to send OTP, clear it
       if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Failed to send login OTP');
+        console.error(`❌ Failed to send client login OTP via ${client.twoFactorMethod}`);
       }
       client.otpCode = undefined;
       client.otpExpires = undefined;
@@ -221,14 +287,15 @@ exports.loginClient = catchAsync(async (req, res, next) => {
     }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Login OTP sent successfully');
+      console.log(`✅ Client login OTP sent via: ${sentMethod}`);
     }
 
     return res.status(200).json({
       status: 'otp_required',
-      message: 'OTP sent to your registered phone number',
+      message: `OTP sent to your ${sentMethod}`,
       email: client.contact_email,
-      maskedPhone: OTPService.maskPhone(client.phone),
+      maskedPhone: client.twoFactorMethod === 'sms' ? OTPService.maskPhone(client.phone) : undefined,
+      maskedEmail: client.twoFactorMethod === 'email' ? OTPService.maskEmail(client.contact_email) : undefined,
       expiresIn: process.env.OTP_EXPIRY_MINUTES || 5
     });
   }
@@ -314,11 +381,17 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     return next(new AppError('There is no user with that email address.', 404));
   }
 
-  // 2) Check if user has a phone number (OTP PATH)
-  // Note: We don't require phoneVerified here because OTP verification itself proves phone ownership
-  if (user.phone) {
-    // ========== OTP PATH (SECURE - OTP PROVES PHONE OWNERSHIP) ==========
-    
+  const emailAddress = user.email || user.contact_email;
+  let otpSent = false;
+  let emailSent = false;
+  let smsError = null;
+  let emailError = null;
+  let otpEmailSent = false;
+
+  // ========== DUAL PATH: SEND BOTH OTP (via SMS + Email) AND EMAIL RESET LINK ==========
+
+  // 2) Send OTP via SMS and Email if user has phone number
+  if (user.phone || emailAddress) {
     // Rate limiting check
     if (!OTPService.canSendOTP(user.otpLastSent)) {
       return next(new AppError('Please wait before requesting another OTP', 429));
@@ -332,75 +405,102 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     user.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
     user.otpAttempts = 0;
     user.otpLastSent = Date.now();
-    await user.save({ validateBeforeSave: false });
 
-    // Send OTP via SMS
-    const smsResult = await OTPService.sendSMS(user.phone, otp);
+    // Send OTP via both SMS and Email
+    const otpResults = await OTPService.sendDualOTP(user.phone, emailAddress, otp);
     
-    if (!smsResult.success && !smsResult.devMode) {
-      // SMS failed, clear OTP and fallback to email
-      user.otpCode = undefined;
-      user.otpExpires = undefined;
-      await user.save({ validateBeforeSave: false });
-      
-      return next(new AppError('Failed to send OTP. Please try again or contact support.', 500));
+    // Track SMS result
+    if (otpResults.sms.success || otpResults.sms.devMode) {
+      otpSent = true;
+    } else if (user.phone) {
+      smsError = otpResults.sms.error || 'Failed to send SMS';
     }
-
-    return res.status(200).json({
-      status: 'success',
-      method: 'otp',
-      message: 'OTP sent to your registered phone number',
-      maskedPhone: OTPService.maskPhone(user.phone),
-      expiresIn: process.env.OTP_EXPIRY_MINUTES || 5
-    });
-  } else {
-    // ========== EMAIL PATH (LEGACY - FOR USERS WITHOUT VERIFIED PHONES) ==========
     
-    // Generate the random reset token
-    const resetToken = user.createPasswordResetToken();
-    await user.save({ validateBeforeSave: false });
-
-    // Send it to user's email
-    const resetURL = `${req.protocol}://${req.get(
-      'host'
-    )}/api/v1/${userType}/resetPassword/${resetToken}`;
-
-    const emailAddress = user.email || user.contact_email;
-    const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL}.\nIf you didn't forget your password, please ignore this email!`;
-
-    // In development, return token directly; in production, send email
-    if (process.env.NODE_ENV === 'development') {
-      return res.status(200).json({
-        status: 'success',
-        method: 'email',
-        message: 'Token generated! (Development mode - token included in response)',
-        resetToken,
-        resetURL
-      });
-    }
-
-    try {
-      await sendEmail({
-        email: emailAddress,
-        subject: 'Your password reset token (valid for 10 min)',
-        message
-      });
-
-      res.status(200).json({
-        status: 'success',
-        method: 'email',
-        message: 'Token sent to email!'
-      });
-    } catch (err) {
-      user.passwordResetToken = undefined;
-      user.passwordResetExpires = undefined;
-      await user.save({ validateBeforeSave: false });
-
-      return next(
-        new AppError('There was an error sending the email. Try again later!', 500)
-      );
+    // Track Email OTP result
+    if (otpResults.email.success) {
+      otpEmailSent = true;
+      otpSent = true; // Mark OTP as sent if either method succeeded
+    } else if (emailAddress) {
+      // Don't set error yet, we'll try sending reset link next
     }
   }
+
+  // 3) Generate and send password reset token via email
+  const resetToken = user.createPasswordResetToken();
+  
+  // Save all changes (OTP and reset token)
+  await user.save({ validateBeforeSave: false });
+
+  // Construct reset URL using frontend URL from environment variable
+  const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const resetURL = `${frontendURL}/reset-password/${resetToken}`;
+  const message = `Forgot your password? You can reset it using any of these methods:\n\n1. Use the OTP sent to your phone${otpEmailSent ? ' and email' : ''} (if available)\n2. Click this link: ${resetURL}\n\nThe OTP and link are valid for ${process.env.OTP_EXPIRY_MINUTES || 5} minutes.\n\nIf you didn't request a password reset, please ignore this email!`;
+
+  // Send email (always attempt, regardless of phone)
+  try {
+    await sendEmail({
+      email: emailAddress,
+      subject: 'Password Reset - Intelliflow',
+      message
+    });
+    emailSent = true;
+  } catch (err) {
+    emailError = 'Failed to send email';
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Email error:', err);
+    }
+  }
+
+  // 4) Prepare response based on what was sent
+  const methods = [];
+  const messages = [];
+
+  if (otpSent) {
+    methods.push('otp');
+    messages.push(`OTP sent to ${OTPService.maskPhone(user.phone)}`);
+  }
+
+  if (emailSent) {
+    methods.push('email');
+    messages.push(`Reset link sent to ${emailAddress}`);
+  }
+
+  // If nothing was sent successfully, return error
+  if (!otpSent && !emailSent) {
+    // Clear the tokens since we couldn't deliver them
+    user.otpCode = undefined;
+    user.otpExpires = undefined;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+    
+    return next(new AppError('Failed to send password reset. Please try again later.', 500));
+  }
+
+  // Success response
+  const response = {
+    status: 'success',
+    methods: methods,
+    message: messages.join(' and ')
+  };
+
+  if (otpSent) {
+    response.maskedPhone = OTPService.maskPhone(user.phone);
+    response.otpExpiresIn = process.env.OTP_EXPIRY_MINUTES || 5;
+  }
+
+  // In development mode, include additional debug info
+  if (process.env.NODE_ENV === 'development') {
+    response.debug = {
+      otpSent,
+      emailSent,
+      smsError,
+      emailError,
+      resetURL: emailSent ? resetURL : undefined
+    };
+  }
+
+  res.status(200).json(response);
 });
 
 

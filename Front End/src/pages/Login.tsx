@@ -48,14 +48,26 @@ export default function Login() {
         return;
       }
       
-      // Normal login (no 2FA)
+      // Normal login (no 2FA) - token and user data returned
+      const token = response.data.token;
+      const user = response.data.data.user;
+      
+      // Store token
+      localStorage.setItem('authToken', token);
+      
+      // Navigate based on role
       if (selectedRole === 'client') {
-        const role = await loginClient(email, password);
-        navigate(role === 'client' ? '/client' : '/');
+        localStorage.setItem('lastUserRole', 'client');
+        navigate('/client');
       } else {
-        const role = await loginEmployee(email, password);
+        const role = user.role === 'manager' ? 'manager' : 'employee';
+        localStorage.setItem('lastUserRole', role);
+        localStorage.setItem('employeeProfile', JSON.stringify(user));
         navigate(role === 'manager' ? '/manager' : '/employee');
       }
+      
+      // Refresh page to update context
+      window.location.reload();
     } catch (err: unknown) {
       logError(err, 'Login');
       const errorMessage = getErrorMessage(err, 'Login failed. Please check your credentials.');
@@ -134,15 +146,15 @@ export default function Login() {
                   <div className="space-y-3 text-gray-700 dark:text-gray-300">
                     <p className="flex items-start gap-2">
                       <span className="text-blue-600 dark:text-blue-400 mt-1 flex-shrink-0">•</span>
-                      <span>To login, you must use <strong>test credentials</strong> provided on the Test Credentials page.</span>
+                      <span>We have added some <strong>test/demo credentials</strong> of employees and clients for you.</span>
                     </p>
                     <p className="flex items-start gap-2">
                       <span className="text-blue-600 dark:text-blue-400 mt-1 flex-shrink-0">•</span>
-                      <span>To sign up a new user, sign in as a <strong>Manager</strong>. Only managers can sign up new users (this is part of our portal feature).</span>
+                      <span>To sign up, you can either <strong>login as a manager</strong> and sign up a new user, or <strong>sign up here</strong>.</span>
                     </p>
                     <p className="flex items-start gap-2">
                       <span className="text-amber-600 dark:text-amber-400 mt-1 flex-shrink-0">⚠</span>
-                      <span><strong>OTP Limitation:</strong> You can't use the OTP system for forgot password or 2FA for any other phone number, as we are using a trial Twilio account which requires manual addition of new numbers.</span>
+                      <span><strong>OTP Limitation:</strong> You can use the OTP system for forgot password and 2FA only via your <strong>own email</strong>, not phone number, as we are using a Twilio trial account which requires manual addition of new numbers.</span>
                     </p>
                   </div>
                   <div className="mt-6 flex gap-3">
@@ -219,16 +231,19 @@ export default function Login() {
                 </Link>
               </div>
 
-              <div className="text-sm text-muted-foreground text-center space-y-1">
-                <p className="text-xs bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
-                  <strong>Note:</strong> Only managers have access to sign up new users
-                </p>
+              <div className="text-sm text-muted-foreground text-center space-y-3">
                 <Link
                   to={`/forgot-password?role=${selectedRole}&email=${encodeURIComponent(email)}`}
-                  className="underline block mt-2"
+                  className="underline block"
                 >
                   Forgot password?
                 </Link>
+                <div className="text-base">
+                  Don't have an account?{' '}
+                  <Link to="/signup" className="text-primary hover:underline font-semibold">
+                    Sign up here
+                  </Link>
+                </div>
               </div>
             </>
           ) : (

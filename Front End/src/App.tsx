@@ -44,6 +44,7 @@ import AddClient from "./pages/manager/AddClient";
 
 // Common Pages
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import HowToUse from "./pages/HowToUse";
@@ -69,6 +70,7 @@ const App = () => (
             <Route path="/how-to-use" element={<HowToUse />} />
             <Route path="/test-credentials" element={<TestCredentials />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
 

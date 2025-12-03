@@ -220,7 +220,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     return next(new AppError('This route is not for password updates. Please use /updateMyPassword.', 400));
   }
   
-  const filteredBody = filterObj(req.body, 'name', 'email', 'availability', 'phone', 'twoFactorEnabled', 'twoFactorMethod');
+  const filteredBody = filterObj(req.body, 'name', 'availability', 'phone', 'twoFactorEnabled', 'twoFactorMethod');
   
   // Normalize phone number if provided
   if (filteredBody.phone) {
@@ -246,21 +246,29 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   // Validate 2FA requirements
   if (req.body.twoFactorEnabled === true) {
     const employee = await Employee.findById(req.user.id);
+    const twoFactorMethod = req.body.twoFactorMethod || employee.twoFactorMethod;
     
-    // Check if phone exists (either in DB or being updated)
-    const phoneToUse = filteredBody.phone || employee.phone;
-    if (!phoneToUse) {
-      return next(new AppError('Please add a phone number before enabling 2FA', 400));
-    }
-    
-    // If phone is being changed, require verification of new number
-    if (filteredBody.phone && filteredBody.phone !== employee.phone) {
-      return next(new AppError('Please verify your new phone number before enabling 2FA', 400));
-    }
-    
-    // Always require phone verification for 2FA
-    if (!employee.phoneVerified) {
-      return next(new AppError('Please verify your phone number before enabling 2FA', 400));
+    if (twoFactorMethod === 'sms') {
+      // Check if phone exists (either in DB or being updated)
+      const phoneToUse = filteredBody.phone || employee.phone;
+      if (!phoneToUse) {
+        return next(new AppError('Please add a phone number before enabling SMS 2FA', 400));
+      }
+      
+      // If phone is being changed, require verification of new number
+      if (filteredBody.phone && filteredBody.phone !== employee.phone) {
+        return next(new AppError('Please verify your new phone number before enabling SMS 2FA', 400));
+      }
+      
+      // Require phone verification for SMS 2FA
+      if (!employee.phoneVerified) {
+        return next(new AppError('Please verify your phone number before enabling SMS 2FA', 400));
+      }
+    } else if (twoFactorMethod === 'email') {
+      // Require email verification for email 2FA
+      if (!employee.emailVerified) {
+        return next(new AppError('Please verify your email before enabling email 2FA', 400));
+      }
     }
   }
   
@@ -401,6 +409,117 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     message: 'Phone number verified successfully'
+  });
+});
+
+// Email Verification OTP
+exports.sendEmailVerificationOTP = catchAsync(async (req, res, next) => {
+  const employee = await Employee.findById(req.user.id);
+  
+  if (!employee.email) {
+    return next(new AppError('No email address found', 400));
+  }
+
+  // Rate limiting check
+  if (!OTPService.canSendOTP(employee.otpLastSent)) {
+    return next(new AppError('Please wait before requesting another OTP', 429));
+  }
+
+  // Generate 6-digit OTP
+  const otp = OTPService.generateOTP();
+  
+  // Store hashed OTP in database
+  employee.otpCode = OTPService.hashOTP(otp);
+  employee.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
+  employee.otpAttempts = 0;
+  employee.otpLastSent = Date.now();
+  await employee.save({ validateBeforeSave: false });
+
+  // Send OTP via Email
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📧 Sending email verification OTP to ${employee.email}...`);
+  }
+  
+  try {
+    await OTPService.sendEmail(employee.email, otp);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Email verification OTP sent successfully');
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Verification code sent to your email',
+      maskedEmail: OTPService.maskEmail(employee.email)
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Failed to send email verification OTP:', error);
+    }
+    return next(new AppError('Failed to send verification code. Please try again.', 500));
+  }
+});
+
+exports.verifyEmail = catchAsync(async (req, res, next) => {
+  const { otp } = req.body;
+
+  if (!otp) {
+    return next(new AppError('Please provide the verification code', 400));
+  }
+
+  const employee = await Employee.findById(req.user.id).select('+otpCode');
+
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📧 Email Verification Debug:');
+    console.log('Provided OTP:', otp);
+    console.log('Stored OTP Hash:', employee.otpCode);
+    console.log('OTP Expires:', employee.otpExpires);
+    console.log('OTP Attempts:', employee.otpAttempts);
+  }
+
+  // Verify OTP
+  const isValid = OTPService.verifyOTP(
+    otp,
+    employee.otpCode,
+    employee.otpExpires,
+    employee.otpAttempts
+  );
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Validation Result:', isValid);
+  }
+
+  if (!isValid.valid) {
+    if (isValid.reason === 'expired') {
+      employee.otpCode = undefined;
+      employee.otpExpires = undefined;
+      employee.otpAttempts = 0;
+      await employee.save({ validateBeforeSave: false });
+      return next(new AppError('Verification code has expired. Please request a new one.', 400));
+    } else if (isValid.reason === 'attempts') {
+      employee.otpCode = undefined;
+      employee.otpExpires = undefined;
+      employee.otpAttempts = 0;
+      await employee.save({ validateBeforeSave: false });
+      return next(new AppError('Too many incorrect attempts. Please request a new code.', 400));
+    } else {
+      employee.otpAttempts += 1;
+      await employee.save({ validateBeforeSave: false });
+      return next(new AppError('Invalid verification code', 400));
+    }
+  }
+
+  // OTP is valid - mark email as verified
+  employee.emailVerified = true;
+  employee.otpCode = undefined;
+  employee.otpExpires = undefined;
+  employee.otpAttempts = 0;
+  await employee.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Email verified successfully'
   });
 });
 

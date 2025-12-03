@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Edit3, Save, X, Shield, Smartphone } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Edit3, Save, X, Shield, Smartphone, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
@@ -17,10 +18,14 @@ export default function ManagerProfile() {
         const [profile, setProfile] = useState({ name: '', role: '', email: '', phone: '' });
         const [editForm, setEditForm] = useState({ name: '', role: '', email: '', phone: '' });
         const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+        const [twoFactorMethod, setTwoFactorMethod] = useState<'sms' | 'email'>('sms');
         const [isTogglingTwoFactor, setIsTogglingTwoFactor] = useState(false);
         const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
-        const [showOTPInput, setShowOTPInput] = useState(false);
-        const [otpCode, setOtpCode] = useState('');
+        const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+        const [showPhoneOTPInput, setShowPhoneOTPInput] = useState(false);
+        const [showEmailOTPInput, setShowEmailOTPInput] = useState(false);
+        const [phoneOtpCode, setPhoneOtpCode] = useState('');
+        const [emailOtpCode, setEmailOtpCode] = useState('');
         const { toast } = useToast();
 
         const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,6 +70,7 @@ export default function ManagerProfile() {
                 setProfile(current);
                 setEditForm(current);
                 setTwoFactorEnabled((employee as any).twoFactorEnabled || false);
+                setTwoFactorMethod((employee as any).twoFactorMethod || 'sms');
             }
         }, [employee]);
 
@@ -72,7 +78,6 @@ export default function ManagerProfile() {
                 try {
                     const response = await api.patch('/employees/updateMe', {
                         name: editForm.name,
-                        email: editForm.email,
                         phone: editForm.phone,
                     });
                     
@@ -106,30 +111,42 @@ export default function ManagerProfile() {
         const handleToggleTwoFactor = async () => {
             if (!employee) return;
 
-            // Check if phone exists and is verified before enabling
+            // Check verification requirements before enabling
             if (!twoFactorEnabled) {
-                if (!employee.phone) {
-                    toast({
-                        title: "Phone Number Required",
-                        description: "Please add your phone number before enabling 2FA.",
-                        variant: "destructive",
-                    });
-                    return;
-                }
-                if (!(employee as any).phoneVerified) {
-                    toast({
-                        title: "Phone Verification Required",
-                        description: "Please verify your phone number before enabling 2FA.",
-                        variant: "destructive",
-                    });
-                    return;
+                if (twoFactorMethod === 'sms') {
+                    if (!employee.phone) {
+                        toast({
+                            title: "Phone Number Required",
+                            description: "Please add your phone number before enabling SMS 2FA.",
+                            variant: "destructive",
+                        });
+                        return;
+                    }
+                    if (!(employee as any).phoneVerified) {
+                        toast({
+                            title: "Phone Verification Required",
+                            description: "Please verify your phone number before enabling SMS 2FA.",
+                            variant: "destructive",
+                        });
+                        return;
+                    }
+                } else if (twoFactorMethod === 'email') {
+                    if (!(employee as any).emailVerified) {
+                        toast({
+                            title: "Email Verification Required",
+                            description: "Please verify your email before enabling email 2FA.",
+                            variant: "destructive",
+                        });
+                        return;
+                    }
                 }
             }
 
             setIsTogglingTwoFactor(true);
             try {
                 await api.patch('/employees/updateMe', {
-                    twoFactorEnabled: !twoFactorEnabled
+                    twoFactorEnabled: !twoFactorEnabled,
+                    twoFactorMethod: twoFactorMethod
                 });
                 
                 setTwoFactorEnabled(!twoFactorEnabled);
@@ -137,7 +154,7 @@ export default function ManagerProfile() {
                     title: twoFactorEnabled ? "2FA Disabled" : "2FA Enabled",
                     description: twoFactorEnabled 
                         ? "Two-factor authentication has been disabled." 
-                        : "Two-factor authentication is now active. You'll receive an OTP when logging in.",
+                        : `Two-factor authentication is now active via ${twoFactorMethod === 'sms' ? 'SMS' : 'Email'}. You'll receive an OTP when logging in.`,
                 });
             } catch (error: any) {
                 console.error('Error toggling 2FA:', error);
@@ -155,7 +172,7 @@ export default function ManagerProfile() {
             setIsVerifyingPhone(true);
             try {
                 const res = await api.post('/employees/send-phone-verification-otp');
-                setShowOTPInput(true);
+                setShowPhoneOTPInput(true);
                 toast({
                     title: "Verification Code Sent",
                     description: res.data.message || "Please check your phone for the verification code.",
@@ -172,7 +189,7 @@ export default function ManagerProfile() {
         };
 
         const handleVerifyPhone = async () => {
-            if (!otpCode || otpCode.length !== 6) {
+            if (!phoneOtpCode || phoneOtpCode.length !== 6) {
                 toast({
                     title: "Invalid Code",
                     description: "Please enter a valid 6-digit verification code.",
@@ -183,9 +200,9 @@ export default function ManagerProfile() {
 
             setIsVerifyingPhone(true);
             try {
-                await api.post('/employees/verify-phone', { otp: otpCode });
-                setShowOTPInput(false);
-                setOtpCode('');
+                await api.post('/employees/verify-phone', { otp: phoneOtpCode });
+                setShowPhoneOTPInput(false);
+                setPhoneOtpCode('');
                 
                 // Refresh employee data
                 const res = await api.get('/employees/me');
@@ -210,6 +227,68 @@ export default function ManagerProfile() {
                 });
             } finally {
                 setIsVerifyingPhone(false);
+            }
+        };
+
+        const handleSendEmailVerificationOTP = async () => {
+            setIsVerifyingEmail(true);
+            try {
+                const res = await api.post('/employees/send-email-verification-otp');
+                setShowEmailOTPInput(true);
+                toast({
+                    title: "Verification Code Sent",
+                    description: res.data.message || "Please check your email for the verification code.",
+                });
+            } catch (error: any) {
+                toast({
+                    title: "Failed to Send Code",
+                    description: error.response?.data?.message || "Please try again.",
+                    variant: "destructive",
+                });
+            } finally {
+                setIsVerifyingEmail(false);
+            }
+        };
+
+        const handleVerifyEmail = async () => {
+            if (!emailOtpCode || emailOtpCode.length !== 6) {
+                toast({
+                    title: "Invalid Code",
+                    description: "Please enter a valid 6-digit verification code.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            setIsVerifyingEmail(true);
+            try {
+                await api.post('/employees/verify-email', { otp: emailOtpCode });
+                setShowEmailOTPInput(false);
+                setEmailOtpCode('');
+                
+                // Refresh employee data
+                const res = await api.get('/employees/me');
+                updateEmployee(res.data.data.employee);
+                const current = {
+                    name: res.data.data.employee.name,
+                    role: res.data.data.employee.role || 'Manager',
+                    email: res.data.data.employee.email,
+                    phone: res.data.data.employee.phone || ''
+                };
+                setProfile(current);
+                
+                toast({
+                    title: "Email Verified",
+                    description: "Your email has been verified successfully.",
+                });
+            } catch (error: any) {
+                toast({
+                    title: "Verification Failed",
+                    description: error.response?.data?.message || "Invalid code. Please try again.",
+                    variant: "destructive",
+                });
+            } finally {
+                setIsVerifyingEmail(false);
             }
         };
 
@@ -280,18 +359,23 @@ export default function ManagerProfile() {
                                     id="email"
                                     type="email"
                                     value={editForm.email}
-                                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                    disabled
+                                    readOnly
+                                    className="bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
                                 />
+                                <p className="text-xs text-muted-foreground">Email address cannot be changed. Contact support if needed.</p>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="phone">Phone Number</Label>
                                 <Input
                                     id="phone"
                                     value={formatPhoneDisplay(editForm.phone)}
-                                    onChange={handlePhoneChange}
+                                    disabled
+                                    readOnly
                                     placeholder="+91 98765 43210"
+                                    className="bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
                                 />
-                                <p className="text-xs text-muted-foreground">Enter 10-digit mobile number (6-9 at start). +91 added automatically.</p>
+                                <p className="text-xs text-muted-foreground">Phone number cannot be changed. Contact support if needed.</p>
                             </div>
                         </>
                     ) : (
@@ -338,7 +422,10 @@ export default function ManagerProfile() {
                         <p className="text-sm text-muted-foreground mt-1">
                           {employee.phone} • Not verified
                         </p>
-                        {!showOTPInput ? (
+                        <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                          ⚠️ Note: Twilio trial account requires manual phone verification. Contact admin to add your number.
+                        </p>
+                        {!showPhoneOTPInput ? (
                           <Button
                             variant="outline"
                             size="sm"
@@ -353,8 +440,8 @@ export default function ManagerProfile() {
                             <Input
                               type="text"
                               placeholder="Enter 6-digit code"
-                              value={otpCode}
-                              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              value={phoneOtpCode}
+                              onChange={(e) => setPhoneOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                               maxLength={6}
                               className="max-w-[200px]"
                             />
@@ -362,14 +449,14 @@ export default function ManagerProfile() {
                               <Button
                                 size="sm"
                                 onClick={handleVerifyPhone}
-                                disabled={isVerifyingPhone || otpCode.length !== 6}
+                                disabled={isVerifyingPhone || phoneOtpCode.length !== 6}
                               >
                                 {isVerifyingPhone ? 'Verifying...' : 'Verify'}
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => { setShowOTPInput(false); setOtpCode(''); }}
+                                onClick={() => { setShowPhoneOTPInput(false); setPhoneOtpCode(''); }}
                               >
                                 Cancel
                               </Button>
@@ -380,25 +467,110 @@ export default function ManagerProfile() {
                     </div>
                   </div>
                 )}
+                {/* Email Verification */}
+                {employee && !(employee as any).emailVerified && (
+                  <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                    <div className="flex items-start gap-3">
+                      <Mail className="w-5 h-5 text-blue-600 dark:text-blue-500 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-medium text-foreground">Verify Email Address</div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {employee.email} • Not verified
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                          💡 Verify your email to enable email-based 2FA (no phone required)
+                        </p>
+                        {!showEmailOTPInput ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSendEmailVerificationOTP}
+                            disabled={isVerifyingEmail}
+                            className="mt-3"
+                          >
+                            {isVerifyingEmail ? 'Sending...' : 'Send Verification Code'}
+                          </Button>
+                        ) : (
+                          <div className="mt-3 space-y-2">
+                            <Input
+                              type="text"
+                              placeholder="Enter 6-digit code"
+                              value={emailOtpCode}
+                              onChange={(e) => setEmailOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              maxLength={6}
+                              className="max-w-[200px]"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={handleVerifyEmail}
+                                disabled={isVerifyingEmail || emailOtpCode.length !== 6}
+                              >
+                                {isVerifyingEmail ? 'Verifying...' : 'Verify'}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => { setShowEmailOTPInput(false); setEmailOtpCode(''); }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* 2FA Method Selection */}
+                {employee && ((employee as any).phoneVerified || (employee as any).emailVerified) && (
+                  <div className="p-4 border rounded-lg bg-muted/30">
+                    <div className="space-y-3">
+                      <div className="font-medium text-foreground">Two-Factor Authentication Method</div>
+                      <Select value={twoFactorMethod} onValueChange={(value: 'sms' | 'email') => setTwoFactorMethod(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sms" disabled={!(employee as any).phoneVerified}>
+                            SMS {!(employee as any).phoneVerified && '(Phone not verified)'}
+                          </SelectItem>
+                          <SelectItem value="email" disabled={!(employee as any).emailVerified}>
+                            Email {!(employee as any).emailVerified && '(Email not verified)'}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {twoFactorMethod === 'sms' 
+                          ? '📱 OTP will be sent via SMS to your phone' 
+                          : '📧 OTP will be sent to your email address'}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {/* 2FA Toggle */}
                 <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
                     <div className="flex items-start gap-3 flex-1">
-                        <Smartphone className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        {twoFactorMethod === 'sms' ? (
+                          <Smartphone className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        ) : (
+                          <Mail className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        )}
                         <div className="flex-1">
                             <div className="font-medium text-foreground">Two-Factor Authentication</div>
                             <p className="text-sm text-muted-foreground mt-1">
                                 {twoFactorEnabled 
-                                    ? `Enabled via SMS to ${profile.phone || 'your phone'}`
+                                    ? `Enabled via ${twoFactorMethod === 'sms' ? `SMS to ${profile.phone || 'your phone'}` : `Email to ${profile.email}`}`
                                     : 'Add an extra layer of security to your account'}
                             </p>
-                            {employee && !employee.phone && (
+                            {employee && !(employee as any).phoneVerified && !(employee as any).emailVerified && (
                                 <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
-                                    ⚠️ Please add your phone number to enable 2FA
+                                    ⚠️ Please verify your phone number or email address above to enable 2FA
                                 </p>
                             )}
-                            {employee && employee.phone && !(employee as any).phoneVerified && (
-                                <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
-                                    ⚠️ Please verify your phone number above to enable 2FA
+                            {twoFactorMethod === 'sms' && employee && (employee as any).phoneVerified && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    ⚠️ Twilio trial: Only verified numbers can receive SMS
                                 </p>
                             )}
                         </div>
@@ -407,7 +579,7 @@ export default function ManagerProfile() {
                         variant={twoFactorEnabled ? "destructive" : "default"}
                         size="sm"
                         onClick={handleToggleTwoFactor}
-                        disabled={isTogglingTwoFactor}
+                        disabled={isTogglingTwoFactor || (employee && !(employee as any).phoneVerified && !(employee as any).emailVerified)}
                         className="ml-4"
                     >
                         {isTogglingTwoFactor ? 'Updating...' : twoFactorEnabled ? 'Disable' : 'Enable'}

@@ -74,6 +74,80 @@ class OTPService {
   }
 
   /**
+   * Send OTP via Email
+   * @param {string} email - Recipient email address
+   * @param {string} otp - OTP code to send
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  static async sendEmail(email, otp) {
+    try {
+      const sendEmail = require('./email');
+      
+      const message = `Your Intelliflow verification code is: ${otp}\n\nThis code is valid for ${process.env.OTP_EXPIRY_MINUTES || 5} minutes.\n\nIf you didn't request this code, please ignore this email.\n\nFor security reasons, do not share this code with anyone.`;
+
+      await sendEmail({
+        email: email,
+        subject: 'Your Intelliflow Verification Code',
+        message: message
+      });
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ OTP email sent to ${email}`);
+      }
+      return { success: true };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Email send error:', error.message);
+      }
+      return { 
+        success: false, 
+        error: error.message 
+      };
+    }
+  }
+
+  /**
+   * Send OTP via both SMS and Email
+   * @param {string} phoneNumber - Recipient phone number in E.164 format
+   * @param {string} email - Recipient email address
+   * @param {string} otp - OTP code to send
+   * @returns {Promise<{sms: object, email: object}>}
+   */
+  static async sendDualOTP(phoneNumber, email, otp) {
+    const results = {
+      sms: { success: false },
+      email: { success: false }
+    };
+
+    // Send SMS if phone number exists
+    if (phoneNumber) {
+      results.sms = await this.sendSMS(phoneNumber, otp);
+    }
+
+    // Send Email if email exists
+    if (email) {
+      results.email = await this.sendEmail(email, otp);
+    }
+
+    return results;
+  }
+
+  /**
+   * Mask email for display (security)
+   * @param {string} email - Full email address
+   * @returns {string} Masked email address
+   * @example "user@example.com" => "u***r@example.com"
+   */
+  static maskEmail(email) {
+    if (!email) return '';
+    const [localPart, domain] = email.split('@');
+    if (localPart.length <= 2) {
+      return `${localPart[0]}***@${domain}`;
+    }
+    return `${localPart[0]}***${localPart[localPart.length - 1]}@${domain}`;
+  }
+
+  /**
    * Verify OTP by comparing hashed versions
    * @param {string} providedOTP - OTP provided by user
    * @param {string} storedHashedOTP - Hashed OTP from database

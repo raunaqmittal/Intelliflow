@@ -14,13 +14,14 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
   
-  // Don't send token for login/signup endpoints to prevent conflicts
-  const isAuthEndpoint = config.url?.includes('/login') || 
-                         config.url?.includes('/signup') ||
-                         config.url?.includes('/forgotPassword') ||
-                         config.url?.includes('/resetPassword');
+  // Don't send token for login/public endpoints to prevent conflicts
+  const isPublicEndpoint = config.url?.includes('/login') || 
+                           config.url?.includes('/forgotPassword') ||
+                           config.url?.includes('/resetPassword') ||
+                           config.url?.includes('/verify-reset-otp') ||
+                           config.url?.includes('/verify-login-otp');
   
-  if (token && !isAuthEndpoint) {
+  if (token && !isPublicEndpoint) {
     if (!config.headers) {
       config.headers = new AxiosHeaders();
     }

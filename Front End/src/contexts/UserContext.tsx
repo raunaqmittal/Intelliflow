@@ -41,10 +41,24 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Listen for storage changes from other tabs (detects when another tab logs in)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
+      // Only react to changes from OTHER tabs/windows (e.originatedFromSameWindow is not standard but some browsers set it)
+      // Storage events should NOT fire for changes in the same tab, but some browsers have bugs
+      // We'll add additional checks to prevent false triggers
+      
       // If authToken changed in another tab
       if (e.key === 'authToken') {
         const newToken = e.newValue;
-        const oldToken = token;
+        const oldToken = e.oldValue;
+        
+        // Ignore if values are the same (some browsers fire spurious events)
+        if (newToken === oldToken) {
+          return;
+        }
+        
+        // Ignore if this matches our current token (change was from this tab)
+        if (newToken === token) {
+          return;
+        }
         
         // If token was removed (logout in another tab)
         if (!newToken && oldToken) {
@@ -55,7 +69,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
         
         // If token changed (different user logged in another tab)
-        if (newToken && newToken !== oldToken) {
+        if (newToken && newToken !== oldToken && oldToken) {
           console.log('⚠️ Different user logged in another tab, refreshing session');
           // Force logout and reload to prevent data mismatch
           logout();

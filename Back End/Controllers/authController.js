@@ -443,37 +443,32 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     const resetURL = `${frontendURL}/reset-password/${resetToken}`;
     const message = `Forgot your password? Click this link to reset it:\n\n${resetURL}\n\nThis link is valid for ${process.env.OTP_EXPIRY_MINUTES || 5} minutes.\n\nIf you didn't request a password reset, please ignore this email!`;
 
-    // Send email
-    try {
-      await sendEmail({
-        email: emailAddress,
-        subject: 'Password Reset - Intelliflow',
-        message
-      });
+    // Respond immediately, send email in background (don't wait for it)
+    const response = {
+      status: 'success',
+      method: 'email',
+      message: 'Password reset link sent to your email'
+    };
 
-      const response = {
-        status: 'success',
-        method: 'email',
-        message: 'Password reset link sent to your email'
-      };
-
-      // In development mode, include reset URL
-      if (process.env.NODE_ENV === 'development') {
-        response.debug = { resetURL };
-      }
-
-      return res.status(200).json(response);
-    } catch (err) {
-      // Email failed, clear reset token
-      user.passwordResetToken = undefined;
-      user.passwordResetExpires = undefined;
-      await user.save({ validateBeforeSave: false });
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Email error:', err);
-      }
-      return next(new AppError('Failed to send email. Please try again later.', 500));
+    // In development mode, include reset URL
+    if (process.env.NODE_ENV === 'development') {
+      response.debug = { resetURL };
     }
+
+    // Send response immediately
+    res.status(200).json(response);
+
+    // Send email in background (non-blocking)
+    sendEmail({
+      email: emailAddress,
+      subject: 'Password Reset - Intelliflow',
+      message
+    }).catch(err => {
+      // Log error but don't fail the request since we already responded
+      console.error('Background email sending failed:', err.message);
+    });
+
+    return;
   }
 });
 

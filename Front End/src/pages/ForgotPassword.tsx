@@ -162,8 +162,17 @@ export default function ForgotPassword() {
                   className="w-full h-auto py-3 px-3 flex flex-col items-center justify-center gap-1.5 bg-blue-400 hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600"
                   variant="default"
                 >
-                  <span className="text-sm font-semibold">📱 Send OTP to Phone</span>
-                  <span className="text-xs opacity-90 leading-tight text-center">⚠️ Note: Twilio trial account requires manual phone verification. Contact admin to add your number.</span>
+                  {sendingMethod === 'sms' ? (
+                    <>
+                      <span className="text-sm font-semibold">⏳ Sending OTP...</span>
+                      <span className="text-xs opacity-90">Please wait</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm font-semibold">📱 Send OTP to Phone</span>
+                      <span className="text-xs opacity-90 leading-tight text-center">⚠️ Note: Twilio trial account requires manual phone verification. Contact admin to add your number.</span>
+                    </>
+                  )}
                 </Button>
                 <Button 
                   onClick={handleSendEmail} 
@@ -171,8 +180,17 @@ export default function ForgotPassword() {
                   className="w-full h-auto py-3 px-3 flex flex-col items-center justify-center gap-1.5"
                   variant="default"
                 >
-                  <span className="text-sm font-semibold">📧 Send Reset Link to Email</span>
-                  <span className="text-xs opacity-90 leading-tight">Recommended method</span>
+                  {sendingMethod === 'email' ? (
+                    <>
+                      <span className="text-sm font-semibold">⏳ Sending Email...</span>
+                      <span className="text-xs opacity-90">Please wait</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm font-semibold">📧 Send Reset Link to Email</span>
+                      <span className="text-xs opacity-90 leading-tight">Recommended method</span>
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

@@ -13,8 +13,8 @@ const getTransporter = () => {
 
         transporter = nodemailer.createTransport({
             host: process.env.EMAIL_HOST,
-            port: process.env.EMAIL_PORT,
-            secure: false, // true for 465, false for other ports
+            port: parseInt(process.env.EMAIL_PORT),
+            secure: process.env.EMAIL_PORT === '465', // true for 465, false for other ports
             auth: {
                 user: process.env.EMAIL_USERNAME,
                 pass: process.env.EMAIL_PASSWORD

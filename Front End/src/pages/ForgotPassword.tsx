@@ -188,10 +188,14 @@ export default function ForgotPassword() {
                   ) : (
                     <>
                       <span className="text-sm font-semibold">📧 Send Reset Link to Email</span>
-                      <span className="text-xs opacity-90 leading-tight">Recommended method</span>
                     </>
                   )}
                 </Button>
+              </div>
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700">
+                <p className="text-xs text-amber-800 dark:text-amber-200 text-center">
+                  ⚠️ <strong>Note:</strong> Email functionality is currently unavailable on production due to Render.com free tier limitations. Please contact the administrator for password reset assistance.
+                </p>
               </div>
             </div>
           ) : otpSent ? (

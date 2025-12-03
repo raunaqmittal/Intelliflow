@@ -158,7 +158,7 @@ export default function Login() {
                     </p>
                     <p className="flex items-start gap-2">
                       <span className="text-amber-600 dark:text-amber-400 mt-1 flex-shrink-0">⚠</span>
-                      <span><strong>OTP Limitation:</strong> You can use the OTP system for forgot password and 2FA only via your <strong>own email</strong>, not phone number, as we are using a Twilio trial account which requires manual addition of new numbers.</span>
+                      <span><strong>Email Limitation:</strong> Due to Render.com free tier restrictions, email functionality (OTP for 2FA and password reset) is currently unavailable in production. Please use the provided test credentials or contact the administrator for assistance.</span>
                     </p>
                   </div>
                   <div className="mt-6 flex gap-3">

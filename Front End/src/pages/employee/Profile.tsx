@@ -572,6 +572,9 @@ export default function Profile() {
                         <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
                           💡 Verify your email to enable email-based 2FA (no phone required)
                         </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-500 mt-2">
+                          ⚠️ Note: Email functionality is currently unavailable on production due to Render.com free tier limitations.
+                        </p>
                         {!showEmailOTPInput ? (
                           <Button
                             variant="outline"

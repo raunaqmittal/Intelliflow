@@ -3,43 +3,37 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { Sparkles, Loader2 } from "lucide-react";
 import api from "@/lib/api";
 
 const requestSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
-  requestType: z.enum(["web_dev", "app_dev", "prototype", "research"], {
-    required_error: "Please select a request type",
-  }),
-  description: z.string().min(20, "Description must be at least 20 characters long").max(500, "Description cannot exceed 500 characters").optional().or(z.literal("")),
+  description: z
+    .string()
+    .min(20, "Description must be at least 20 characters")
+    .max(500, "Description cannot exceed 500 characters"),
   requirementsText: z.string().max(4000).optional().or(z.literal("")),
 });
 
 type RequestFormValues = z.infer<typeof requestSchema>;
 
-const typeOptions = [
-  { value: "web_dev", label: "Web Development" },
-  { value: "app_dev", label: "App Development" },
-  { value: "prototype", label: "Prototyping" },
-  { value: "research", label: "Research" },
-];
-
 export default function SubmitRequest() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<"submitting" | "analysing" | null>(null);
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
     defaultValues: {
       title: "",
-      requestType: undefined as unknown as RequestFormValues["requestType"],
       description: "",
       requirementsText: "",
     },
@@ -47,6 +41,7 @@ export default function SubmitRequest() {
 
   const onSubmit = async (values: RequestFormValues) => {
     setSubmitting(true);
+    setLoadingStage("submitting");
     try {
       // Convert requirementsText (one per line or comma-separated) to string[]
       const requirements = (values.requirementsText || "")
@@ -56,35 +51,55 @@ export default function SubmitRequest() {
 
       const createRes = await api.post("/requests", {
         title: values.title,
-        requestType: values.requestType,
-        description: values.description || undefined,
+        description: values.description,
         requirements,
+        // No requestType — AI determines this automatically
       });
 
-      // Automatically generate workflow after submission
       const newId = createRes.data?.data?.request?._id as string | undefined;
+
       if (newId) {
+        setLoadingStage("analysing");
         try {
-          await api.post(`/requests/${newId}/generate-workflow`);
+          const workflowRes = await api.post(`/requests/${newId}/generate-workflow`);
+
+          // Handle out-of-scope response
+          if (workflowRes.data?.status === "out_of_scope") {
+            toast({
+              title: "Request reviewed by AI",
+              description:
+                "Your request was reviewed — see details for more information.",
+            });
+            navigate("/client/my-requests");
+            return;
+          }
         } catch (e) {
-          // Non-fatal; manager can generate later
-          console.warn('Auto-generate workflow failed:', e);
+          // Non-fatal — manager can generate workflow manually later
+          console.warn("Auto-generate workflow failed:", e);
         }
       }
 
       toast({
         title: "Request submitted",
-        description: newId ? "Workflow generation initiated automatically." : "Your request has been submitted for review.",
+        description: "Your request has been submitted and analysed by AI.",
       });
-      navigate("/client");
+      navigate("/client/my-requests");
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
-      const msg = axiosErr?.response?.data?.message || "Failed to submit request. Please try again.";
+      const msg =
+        axiosErr?.response?.data?.message ||
+        "Failed to submit request. Please try again.";
       toast({ title: "Submission failed", description: msg, variant: "destructive" });
     } finally {
       setSubmitting(false);
+      setLoadingStage(null);
     }
   };
+
+  const loadingLabel =
+    loadingStage === "analysing"
+      ? "Analysing your request with AI..."
+      : "Submitting...";
 
   return (
     <div className="p-8">
@@ -93,6 +108,16 @@ export default function SubmitRequest() {
       <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle>New Project Details</CardTitle>
+          <CardDescription className="flex items-center gap-2 mt-1">
+            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+              <Sparkles className="h-3 w-3" />
+              AI-Powered
+            </Badge>
+            <span>
+              Our AI will automatically identify your project type and generate a
+              tailored workflow plan.
+            </span>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -111,46 +136,23 @@ export default function SubmitRequest() {
                 )}
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="requestType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Request Type</FormLabel>
-                      <FormControl>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {typeOptions.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Short Description</FormLabel>
-                      <FormControl>
-                        <Input placeholder="A brief summary of what you need" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={4}
+                        placeholder="Describe what you need in detail. The more context you provide, the better the AI can plan your project."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -161,7 +163,9 @@ export default function SubmitRequest() {
                     <FormControl>
                       <Textarea
                         rows={6}
-                        placeholder={"List your requirements (one per line).\nExamples:\n- Responsive design\n- Admin dashboard\n- Email notifications"}
+                        placeholder={
+                          "List your requirements (one per line).\nExamples:\n- Responsive design\n- Admin dashboard\n- Email notifications"
+                        }
                         {...field}
                       />
                     </FormControl>
@@ -172,9 +176,21 @@ export default function SubmitRequest() {
 
               <div className="flex items-center gap-3">
                 <Button type="submit" disabled={submitting}>
-                  {submitting ? "Submitting..." : "Submit Request"}
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {loadingLabel}
+                    </>
+                  ) : (
+                    "Submit Request"
+                  )}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate(-1)} disabled={submitting}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(-1)}
+                  disabled={submitting}
+                >
                   Cancel
                 </Button>
               </div>

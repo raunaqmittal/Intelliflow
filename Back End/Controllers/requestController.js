@@ -6,6 +6,7 @@ const catchAsync = require('../Utilities/catchAsync');
 const AppError = require('../Utilities/appError');
 const { generateWorkflowWithSuggestions } = require('../Utilities/workflowGenerator');
 const { suggestEmployeesForTask } = require('../Utilities/employeeSuggestion');
+const { runAIWorkflowAgent } = require('../Utilities/aiWorkflowAgent');
 
 // Simple department normalizer mirroring front-end logic (strict canonical form)
 const normalizeDept = d => (d || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
@@ -168,7 +169,7 @@ exports.createRequest = catchAsync(async (req, res, next) => {
 
   const newRequest = await Request.create({
     client: req.user.id,
-    requestType: req.body.requestType,
+    // requestType is NOT set here — AI classifies it during generateWorkflow
     title: req.body.title,
     description: req.body.description,
     requirements: req.body.requirements
@@ -248,7 +249,7 @@ exports.deleteRequest = catchAsync(async (req, res, next) => {
   });
 });
 
-// Generate workflow with employee suggestions
+// Generate workflow with AI agent + employee suggestions
 exports.generateWorkflow = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id);
 
@@ -260,22 +261,59 @@ exports.generateWorkflow = catchAsync(async (req, res, next) => {
     return next(new AppError('Workflow has already been generated for this request', 400));
   }
 
-  // Generate workflow with automatic employee suggestions
-  const generatedWorkflow = await generateWorkflowWithSuggestions(
-    request.requestType,
-    request.description,
-    request.requirements
+  // ── Run AI Agent ─────────────────────────────────────────────────────────
+  const agentResult = await runAIWorkflowAgent({
+    title: request.title,
+    description: request.description,
+    requirements: request.requirements
+  });
+
+  // ── Handle Out-of-Scope ──────────────────────────────────────────────────
+  if (agentResult.isOutOfScope) {
+    request.status = 'out_of_scope';
+    request.requestType = 'out_of_scope';
+    request.aiClassification = {
+      detectedType: 'out_of_scope',
+      confidence: agentResult.aiConfidence,
+      outOfScopeReason: agentResult.outOfScopeReason,
+      classifiedAt: new Date()
+    };
+    await request.save();
+    return res.status(200).json({
+      status: 'out_of_scope',
+      message: "This request is outside the company's service scope",
+      reason: agentResult.outOfScopeReason,
+      data: { request }
+    });
+  }
+
+  // ── Handle In-Scope: save AI classification ──────────────────────────────
+  request.requestType = agentResult.requestType;
+  request.aiClassification = {
+    detectedType: agentResult.requestType,
+    confidence: agentResult.aiConfidence,
+    usedFallback: agentResult.usedFallback,
+    classifiedAt: new Date()
+  };
+
+  // ── Add employee suggestions to each AI-generated task ──────────────────
+  const taskBreakdownWithSuggestions = await Promise.all(
+    agentResult.workflow.taskBreakdown.map(async (task) => ({
+      ...task,
+      suggestedEmployees: await suggestEmployeesForTask(task)
+    }))
   );
 
-  request.generatedWorkflow = generatedWorkflow;
+  request.generatedWorkflow = {
+    estimatedDuration: agentResult.workflow.estimatedDuration,
+    taskBreakdown: taskBreakdownWithSuggestions
+  };
 
-  // Derive required departments from task breakdown teams
+  // ── Derive required departments from AI-generated task teams ─────────────
   const deptSet = new Set(
-    Array.isArray(generatedWorkflow.taskBreakdown)
-      ? generatedWorkflow.taskBreakdown
-          .map(t => (t && t.team ? t.team : null))
-          .filter(Boolean)
-      : []
+    taskBreakdownWithSuggestions
+      .map(t => (t && t.team ? t.team : null))
+      .filter(Boolean)
   );
   const uniqueDepartments = Array.from(deptSet);
   request.requiredDepartments = uniqueDepartments;
@@ -287,7 +325,7 @@ exports.generateWorkflow = catchAsync(async (req, res, next) => {
   request.status = 'workflow_generated';
   await request.save();
 
-  // Populate employee details
+  // ── Populate employee details for response ───────────────────────────────
   await request.populate({
     path: 'generatedWorkflow.taskBreakdown.suggestedEmployees.employee',
     select: 'name email role department skills availability'
@@ -295,9 +333,7 @@ exports.generateWorkflow = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: 'success',
-    data: {
-      request
-    }
+    data: { request }
   });
 });
 

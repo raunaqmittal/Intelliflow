@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, RefreshCcw, CheckCircle2, Ban, Wand2, Users } from 'lucide-react';
+import { ArrowLeft, RefreshCcw, CheckCircle2, Ban, Wand2, Users, Bot } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
@@ -44,8 +44,8 @@ interface RequestDetailsModel {
   title: string;
   description?: string;
   requirements?: string[];
-  requestType: 'web_dev' | 'app_dev' | 'prototype' | 'research';
-  status: 'submitted' | 'workflow_generated' | 'under_review' | 'approved' | 'rejected' | 'converted';
+  requestType: 'web_dev' | 'app_dev' | 'prototype' | 'research' | 'out_of_scope';
+  status: 'submitted' | 'workflow_generated' | 'under_review' | 'approved' | 'rejected' | 'converted' | 'out_of_scope';
   createdAt: string;
   client?: { client_name?: string; contact_email?: string };
   generatedWorkflow?: {
@@ -62,14 +62,21 @@ interface RequestDetailsModel {
     rejectedAt?: string;
   }>;
   requiredDepartments?: string[];
+  aiClassification?: {
+    detectedType: string;
+    confidence: 'high' | 'medium' | 'low';
+    outOfScopeReason?: string;
+    usedFallback?: boolean;
+  };
 }
 
-const typeLabel = {
+const typeLabel: Record<string, string> = {
   web_dev: 'Web Dev',
   app_dev: 'App Dev',
   prototype: 'Prototyping',
   research: 'Research',
-} as const;
+  out_of_scope: 'Out of Scope',
+};
 
 export default function ManagerRequestDetails() {
   const { id } = useParams<{ id: string }>();
@@ -516,6 +523,21 @@ export default function ManagerRequestDetails() {
             <div className="space-y-3">
               <Separator />
               <h3 className="text-lg font-semibold">Generated Workflow</h3>
+
+              {/* AI Classification Info Card */}
+              {data.aiClassification && (
+                <div className="bg-muted/50 rounded-lg p-3 flex items-center gap-4 text-sm border">
+                  <Bot className="h-4 w-4 text-primary shrink-0" />
+                  <span>
+                    AI Classified as:{' '}
+                    <strong>{typeLabel[data.aiClassification.detectedType] || data.aiClassification.detectedType}</strong>
+                  </span>
+                  <Badge variant="outline">{data.aiClassification.confidence} confidence</Badge>
+                  {data.aiClassification.usedFallback && (
+                    <Badge variant="secondary">Template Fallback Used</Badge>
+                  )}
+                </div>
+              )}
               {/* Guidance if final approve is disabled */}
               {!canApprove && (
                 <div className="text-sm text-muted-foreground border rounded-md p-3 bg-muted/30">
@@ -564,60 +586,94 @@ export default function ManagerRequestDetails() {
                   </TableBody>
                 </Table>
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Task</TableHead>
-                    <TableHead>Team</TableHead>
-                    <TableHead>Est. Hours</TableHead>
-                    <TableHead>Required Skills</TableHead>
-                    <TableHead>Suggested</TableHead>
-                    <TableHead>Assigned</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.generatedWorkflow!.taskBreakdown.map((t) => (
-                    <TableRow key={t._id}>
-                      <TableCell className="font-medium">{t.taskName}</TableCell>
-                      <TableCell>{t.team || '-'}</TableCell>
-                      <TableCell>{t.estimatedHours ?? '-'}</TableCell>
-                      <TableCell>{(t.requiredSkills || []).join(', ')}</TableCell>
-                      <TableCell>
-                        {t.suggestedEmployees && t.suggestedEmployees.length > 0 ? (
-                          <div className="space-y-1">
-                            {t.suggestedEmployees.slice(0, 3).map((se) => (
-                              <div key={se.employee._id} className="text-sm">
-                                <span className="font-medium">{se.employee.name}</span>
-                                <span className="text-muted-foreground"> — {se.employee.availability || 'Unknown'} • {Math.round(se.matchScore)}%</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">No suggestions</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {(t.assignedEmployees || []).length > 0 ? (
-                          <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground">{(t.assignedEmployees || []).length} assignee(s)</div>
-                            <div>{(t.assignedEmployees || []).map(a => a?.name).join(', ')}</div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Unassigned</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {t.team && managerCanActForTeam(t.team) && (
-                          <Button variant="outline" size="sm" className="ml-2" onClick={() => openDrawerForTask(t)}>
-                            <Users className="h-4 w-4 mr-1" /> Assign team
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="space-y-6">
+                {/* Group tasks by sprint */}
+                {(() => {
+                  const tasks = data.generatedWorkflow!.taskBreakdown;
+                  // Same sprint formula as approveRequest: Math.floor(index/2)+1
+                  const sprintGroups: Record<number, typeof tasks> = {};
+                  tasks.forEach((t, index) => {
+                    const sprint = Math.floor(index / 2) + 1;
+                    if (!sprintGroups[sprint]) sprintGroups[sprint] = [];
+                    sprintGroups[sprint].push(t);
+                  });
+
+                  return Object.entries(sprintGroups).map(([sprintNum, sprintTasks]) => (
+                    <div key={sprintNum} className="border rounded-lg overflow-hidden">
+                      {/* Sprint header */}
+                      <div className="bg-muted/60 px-4 py-2 flex items-center gap-3 border-b">
+                        <Badge variant="outline" className="font-semibold">Sprint {sprintNum}</Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {sprintTasks.length} task{sprintTasks.length > 1 ? 's' : ''} •{' '}
+                          {sprintTasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0)} hrs
+                        </span>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Task</TableHead>
+                            <TableHead>Team</TableHead>
+                            <TableHead>Est. Hours</TableHead>
+                            <TableHead>Required Skills</TableHead>
+                            <TableHead>Suggested</TableHead>
+                            <TableHead>Assigned</TableHead>
+                            <TableHead>Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sprintTasks.map((t) => (
+                            <TableRow key={t._id}>
+                              <TableCell className="font-medium">{t.taskName}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-xs capitalize">{t.team || '-'}</Badge>
+                              </TableCell>
+                              <TableCell>{t.estimatedHours ?? '-'}</TableCell>
+                              <TableCell className="max-w-[180px]">
+                                <div className="flex flex-wrap gap-1">
+                                  {(t.requiredSkills || []).map((skill, i) => (
+                                    <Badge key={i} variant="outline" className="text-xs">{skill}</Badge>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {t.suggestedEmployees && t.suggestedEmployees.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {t.suggestedEmployees.slice(0, 3).map((se) => (
+                                      <div key={se.employee._id} className="text-sm">
+                                        <span className="font-medium">{se.employee.name}</span>
+                                        <span className="text-muted-foreground"> — {se.employee.availability || 'Unknown'} • {Math.round(se.matchScore)}%</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">No suggestions</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {(t.assignedEmployees || []).length > 0 ? (
+                                  <div className="space-y-1">
+                                    <div className="text-xs text-muted-foreground">{(t.assignedEmployees || []).length} assignee(s)</div>
+                                    <div>{(t.assignedEmployees || []).map(a => a?.name).join(', ')}</div>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">Unassigned</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {t.team && managerCanActForTeam(t.team) && (
+                                  <Button variant="outline" size="sm" className="ml-2" onClick={() => openDrawerForTask(t)}>
+                                    <Users className="h-4 w-4 mr-1" /> Assign team
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ));
+                })()}
+              </div>
             </div>
           )}
         </CardContent>

@@ -8,8 +8,16 @@ const requestSchema = new mongoose.Schema({
   },
   requestType: {
     type: String,
-    enum: ['web_dev', 'app_dev', 'prototype', 'research'],
-    required: true
+    enum: ['web_dev', 'app_dev', 'prototype', 'research', 'out_of_scope'],
+    required: false   // AI sets this after submission
+  },
+  // AI classification metadata set by aiWorkflowAgent
+  aiClassification: {
+    detectedType: String,
+    confidence: { type: String, enum: ['high', 'medium', 'low'] },
+    outOfScopeReason: String,
+    usedFallback: { type: Boolean, default: false },
+    classifiedAt: Date
   },
   title: {
     type: String,
@@ -77,7 +85,8 @@ const requestSchema = new mongoose.Schema({
       'under_review',
       'approved',
       'rejected',
-      'converted'
+      'converted',
+      'out_of_scope'    // Set by AI when request is outside company scope
     ],
     default: 'submitted'
   },

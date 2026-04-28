@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
-import { Eye } from 'lucide-react';
+import { Eye, AlertTriangle } from 'lucide-react';
 
 interface Request {
   _id: string;
@@ -30,6 +30,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved: 'bg-green-500',
   rejected: 'bg-red-500',
   converted: 'bg-gray-500',
+  out_of_scope: 'bg-red-600',
 };
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
@@ -37,6 +38,7 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
   app_dev: 'App Development',
   prototype: 'Prototype',
   research: 'Research',
+  out_of_scope: 'Out of Scope',
 };
 
 export default function MyRequests() {
@@ -119,7 +121,14 @@ export default function MyRequests() {
             <TableBody>
               {requests.map((request) => (
                 <TableRow key={request._id}>
-                  <TableCell className="font-medium">{request.title}</TableCell>
+                <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {request.status === 'out_of_scope' && (
+                        <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                      )}
+                      {request.title}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {REQUEST_TYPE_LABELS[request.requestType] || request.requestType}
                   </TableCell>

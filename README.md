@@ -1,4 +1,4 @@
-Intelliflow — Integrated Workflow OS for Cross‑Functional Teams
+Intelliflow — Agentic Workflow OS for Cross‑Functional Teams
 
 **Overview**
 
@@ -17,12 +17,13 @@ Intelliflow — Integrated Workflow OS for Cross‑Functional Teams
 - **Practical automation:** Automates where it helps, while preserving expert overrides and transparency.
 - **Productizable:** Built to be customized per enterprise with policies, approvals, access, and reporting.
 
-**How It Works (Rule‑Based Engine Today)**
+**How It Works (Agentic AI & Rule‑Based Hybrid)**
 
-- **Intake → Approval → Project:** Requests are approved and transformed into tracked projects.
-- **Workflow generation:** A rule‑based template creates sprints/tasks by project type/category.
-- **Smart assignment:** Tasks assigned by role/department and availability, with reassignment support.
+- **Intake → Agentic Classification:** Requests are automatically analyzed by an AI agent (powered by LangGraph + Groq) to detect project type and identify "Out of Scope" submissions instantly.
+- **Dynamic Workflow Generation:** Instead of static templates, the AI generates a tailored task breakdown, estimating hours and required skills based on the specific project description.
+- **Rule-Based Fallbacks:** If the AI is unavailable or the confidence is low, the system seamlessly falls back to reliable rule-based templates to ensure zero downtime.
 - **Execution loop:** Employees use “My Tasks” to update status; projects auto‑update when tasks complete.
+- **Smart Assignment:** AI-suggested employee matching based on skills and availability (In Progress).
 - **Guardrails:** Security, validation, and sane defaults (rate limiting, sanitization, CORS, JWT auth).
 
 **Key Features**
@@ -30,22 +31,23 @@ Intelliflow — Integrated Workflow OS for Cross‑Functional Teams
 - **Authentication:** Employee and Client login, password reset, JWT-based sessions.
 - **Projects:** Creation, listing, status tracking, active sprints, per‑project task drill‑downs.
 - **Tasks:** Per‑employee view, status updates, reassignment, dependency representation.
-- **Requests:** Approval flow converts requests to projects using prebuilt task templates.
-- **Analytics:** Task status stats; hooks for richer dashboards.
+- **AI Classification:** Automated project categorization (Web, App, Prototype, Research) with scope detection.
+- **Dynamic Workflows:** AI-generated task breakdowns tailored to unique client requirements.
+- **Requests:** Multi-department approval flow that converts validated requests into active projects.
+- **Analytics:** Task status stats and AI performance metrics (confidence scores, fallback rates).
 - **Frontend UX:** React + TypeScript UI with role‑aware pages (employee, manager).
 - **API:** REST endpoints for employees, clients, projects, requests, and tasks.
 
 **Tech Stack**
 
-- **Backend:** Node.js/Express, MongoDB/Mongoose, JWT auth, Helmet, Rate limiting, XSS/NoSQL injection protection.
-- **Frontend:** React (Vite + TypeScript), componentized UI, context auth, API client with token interceptor.
+- **Backend:** Node.js/Express, MongoDB/Mongoose, JWT auth.
+- **AI/Agents:** LangGraph (State Machine), Groq (Llama 3.3 LLM), Zod (Structured Output).
+- **Frontend:** React (Vite + TypeScript), componentized UI, context auth.
 - **Structure:** `Back End/` (controllers, models, routes, utilities), `Front End/` (pages, components, lib), `Data/` for seeds.
 
 **Roadmap (Intelligent Automation & Agents)**
 
-- **Agentic Planner:** Autonomous “Project Agent” to clarify requirements and propose tailored work breakdowns.
-- **LLM Workflow Generator:** Move beyond static templates to LLM‑guided generation using company SOPs and past projects.
-- **Advanced Allocation:** Optimize assignment by skills, performance, availability, workload, dependencies, deadlines.
+- **Advanced Allocation:** Optimize assignment by skills, performance, availability, workload, dependencies, deadlines using AI matching.
 - **Predictive Scheduling:** Forecast slippage, auto‑resequence tasks, and prompt mitigations.
 - **Conversational Ops:** Chat interface for “create project”, “assign QA”, “show blockers” with audit trails.
 - **Integrations:** Slack/Teams for updates; Jira/GitHub/CI for dev sync and auto‑progress signals.

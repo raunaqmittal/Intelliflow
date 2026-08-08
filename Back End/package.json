@@ -13,9 +13,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@langchain/core": "^1.1.42",
-    "@langchain/groq": "^1.2.0",
-    "@langchain/langgraph": "^1.2.9",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -32,8 +29,7 @@
     "nodemailer": "^7.0.9",
     "twilio": "^5.10.5",
     "validator": "^13.15.15",
-    "xss-clean": "^0.1.4",
-    "zod": "^4.3.6"
+    "xss-clean": "^0.1.4"
   },
   "engines": {
     "node": ">=18.0.0"

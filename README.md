@@ -112,3 +112,5 @@ Intelliflow includes practical protections out of the box to reduce common attac
 - **Enhanced CORS policies:** Granular header/method restrictions and credential handling.
 - **Audit/event logging:** Immutable trails for compliance and regulated environments.
   
+
+  .

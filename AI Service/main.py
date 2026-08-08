@@ -76,7 +76,7 @@ def verify_internal_key(x_internal_key: str = Header(..., alias="X-Internal-Key"
 # Routes
 # ---------------------------------------------------------------------------
 
-@app.get("/health", tags=["Monitoring"])
+@app.api_route("/health", methods=["GET", "HEAD"], tags=["Monitoring"])
 async def health_check() -> dict:
     """Health check endpoint — no auth required."""
     return {"status": "ok", "service": "intelliflow-ai-agent"}

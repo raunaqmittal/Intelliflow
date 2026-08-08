@@ -57,7 +57,7 @@
 - Groq LLM: `llama-3.3-70b-versatile` (configurable via env)
 - Pydantic v2 (replaces Zod) — LLM output validation
 - Uvicorn — ASGI server
-- Deployed on **Hugging Face Spaces (CPU Basic, free, always-on)**
+- Deployed on **Render (Free Tier)**. Kept awake using **UptimeRobot** 5-min ping to prevent 40s cold-start timeouts.
 
 ### Security Middleware
 - Helmet (HTTP security headers)
@@ -92,7 +92,7 @@ Express REST API (Node.js, Port 3000)  [Render]
   |         | Header: X-Internal-Key
   |         | (35s axios timeout)
   |         v
-  |   FastAPI Agent Service (Python)  [Hugging Face Spaces - FREE]
+  |   FastAPI Agent Service (Python)  [Render Free Tier + UptimeRobot]
   |         |
   |         +-- Pydantic validates input
   |         +-- LangGraph StateGraph:
@@ -459,10 +459,11 @@ All routes under `/api/v1/*` require `Authorization: Bearer <JWT>` unless marked
 
 ## 11. AI / Agent Workflow
 
-### AI / Agent Workflow — Python FastAPI Microservice on Hugging Face Spaces
+### AI / Agent Workflow — Python FastAPI Microservice on Render
 
 **Service directory:** `AI Service/`
-**Deployed at:** `https://<hf-username>-intelliflow-ai-agent.hf.space` (free, always-on)
+**Deployed at:** `https://intelliflow-ai-service-mauq.onrender.com` (Render Free Tier)
+**Keep-alive:** UptimeRobot pings `/health` every 5 mins to prevent 40s cold start timeouts.
 **Called by:** `Back End/Utilities/aiWorkflowAgent.js` via axios POST
 
 ### LangGraph State Graph — `AI Service/agent.py`
@@ -511,12 +512,12 @@ Output (AgentOutput Pydantic model — identical shape to old JS output):
 **Fallback templates:** `AI Service/fallbacks.py` (identical values to original JS `FALLBACK_WORKFLOWS`).
 **Prompt locations:** `AI Service/prompts.py` — `CLASSIFY_SYSTEM`, `WORKFLOW_SYSTEM`, `build_classify_prompt()`, `build_workflow_prompt()`.
 **Security:** Every request to `/run-agent` must include `X-Internal-Key` header matching `INTERNAL_API_KEY` env var.
-**Deployment:** Hugging Face Spaces (Docker SDK, CPU Basic, port 7860, free always-on).
+**Deployment:** Render Free Tier (Web Service). UptimeRobot used to prevent sleeping.
 
 ### Node.js side — `Back End/Utilities/aiWorkflowAgent.js`
 
 Now a ~90-line thin HTTP proxy:
-- Reads `AI_AGENT_URL` (HF Spaces URL in prod, `http://localhost:8000` in dev)
+- Reads `AI_AGENT_URL` (`https://intelliflow-ai-service-mauq.onrender.com` in prod, `http://localhost:8000` in dev)
 - Sends `X-Internal-Key: <AI_AGENT_INTERNAL_KEY>` header
 - 35-second axios timeout (slightly more than Python's 30s so Python handles timeout first)
 - Last-resort fallback if Python service is completely unreachable (network error)
@@ -663,8 +664,8 @@ employees <-------------------------------------------------------|
 - MODIFIED: `Back End/Utilities/aiWorkflowAgent.js` → replaced 401-line LangGraph JS with ~90-line axios proxy
 - MODIFIED: `Back End/config.env` → replaced GROQ_* vars with AI_AGENT_URL + AI_AGENT_INTERNAL_KEY
 - MODIFIED: `Back End/package.json` → removed @langchain/core, @langchain/groq, @langchain/langgraph, zod
-**Result:** Python service deployed on Hugging Face Spaces (free, always-on). Node.js calls it via HTTP. requestController.js unchanged.
-**Decision:** Hugging Face Spaces chosen as free always-on platform (Render/Koyeb free tiers sleep after inactivity which conflicts with 30s AI timeout)
+**Result:** Python service deployed on Render Free Tier. Node.js calls it via HTTP. requestController.js unchanged. UptimeRobot used to prevent Render sleep and timeout issues.
+**Decision:** Hugging Face Spaces originally planned, but switched to Render since HF now charges for Docker spaces on some accounts.
 
 ### 2026-08
 **Change:** AI workflow agent integrated (LangGraph + Groq)

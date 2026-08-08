@@ -149,6 +149,15 @@ Render's free tier spins down your service after 15 minutes of inactivity. When 
 7. Once deployed, copy your Render URL (e.g., `https://intelliflow-ai-agent.onrender.com`).
 8. Update `AI_AGENT_URL` in your Node.js backend's `config.env` (and Render dashboard) to match this URL.
 
+### Crucial Final Step: Prevent Sleep (Free Tier only)
+Because Render free tier sleeps after 15 mins, and the cold start takes ~42 seconds (longer than your Node.js 35s timeout), you **must** use UptimeRobot to keep it awake:
+1. Go to [UptimeRobot](https://uptimerobot.com) (free)
+2. Add a new **HTTP(s)** monitor
+3. URL: `https://<your-render-app>.onrender.com/health` (The `/health` endpoint supports both GET and HEAD requests specifically for this)
+4. Interval: **5 minutes**
+
+Without this step, your first AI request of the day will always fail and use the fallback template.
+
 ---
 
 ## Environment Variables

@@ -121,58 +121,33 @@ Content-Type: application/json
 
 ---
 
-## Deployment — Hugging Face Spaces (FREE, Always-On)
+## Deployment — Render (Free Tier)
 
-**Why Hugging Face Spaces?**
-- Truly free forever (CPU Basic tier)
-- Always-on — no sleep after inactivity (unlike Render/Koyeb free tiers)
-- Built for AI workloads
-- No credit card required
+You can easily deploy this FastAPI service to Render for free as a Web Service.
+
+**Important Note on Free Tier:**
+Render's free tier spins down your service after 15 minutes of inactivity. When a new request comes in, it causes a "cold start" which can take 30–60 seconds. Since your Node.js backend has a 35-second timeout, the very first request of the day might time out and use the fallback workflow. Subsequent requests will be fast.
 
 ### Steps
 
-1. Go to [huggingface.co/new-space](https://huggingface.co/new-space)
-2. Fill in:
-   - **Owner:** your HF username
-   - **Space name:** `intelliflow-ai-agent` (or any name)
-   - **SDK:** select **Docker**
-   - **Hardware:** **CPU Basic** (free)
-   - **Visibility:** **Private** (so the endpoint isn't public)
-3. Click **Create Space** — HF creates a Git repo for the space
-4. Clone the Space repo and copy **only** the `AI Service/` files into it:
-   ```bash
-   git clone https://huggingface.co/spaces/<your-username>/intelliflow-ai-agent
-   cd intelliflow-ai-agent
-
-   # Copy all AI Service files (NOT the whole Intelliflow repo)
-   copy <path-to-intelliflow>\AI Service\* .    # Windows
-   cp -r <path-to-intelliflow>/AI\ Service/* .  # macOS/Linux
-   ```
-5. Add secrets in the Space **Settings → Variables and secrets** tab:
+1. Push your repository to GitHub (the `AI Service/` folder is part of the monorepo).
+2. Go to [Render Dashboard](https://dashboard.render.com/) and create a new **Web Service**.
+3. Connect your GitHub repository.
+4. Fill in the deployment details:
+   - **Name:** `intelliflow-ai-agent` (or anything you like)
+   - **Root Directory:** `AI Service`
+   - **Environment:** `Python`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+5. Click **Advanced** and add your Environment Variables:
    - `GROQ_API_KEY` → your Groq key
    - `GROQ_MODEL` → `llama-3.3-70b-versatile`
    - `AI_WORKFLOW_TIMEOUT_SECS` → `30`
-   - `INTERNAL_API_KEY` → your shared secret (same value as `AI_AGENT_INTERNAL_KEY` in `Back End/config.env`)
-   - **Do NOT add PORT** — HF sets it to 7860 automatically
-6. Push the code:
-   ```bash
-   git add .
-   git commit -m "initial deploy"
-   git push
-   ```
-7. HF builds the Docker image automatically. Wait ~2–3 minutes.
-8. Your API will be live at:
-   ```
-   https://<your-username>-intelliflow-ai-agent.hf.space
-   ```
-9. Update `AI_AGENT_URL` in `Back End/config.env` (and your Render dashboard env vars) to that URL.
-
-### Important HF Spaces notes
-
-- **Port:** The Dockerfile already sets port `7860` — HF requires this. Do not change it.
-- **Secrets:** HF secrets are injected as environment variables. Never commit `.env` to the Space repo.
-- **Logs:** View build and runtime logs in the Space's **Logs** tab.
-- **Private Space:** Private spaces require a HF token to call the API. Since our service uses `X-Internal-Key` for auth, you can keep the space **Public** and rely on the shared secret alone — the endpoint will be accessible but unauthorized calls are rejected by FastAPI.
+   - `INTERNAL_API_KEY` → your shared secret (make up a strong password)
+   - `PYTHON_VERSION` → `3.11.0` (Recommended by Render)
+6. Click **Create Web Service**.
+7. Once deployed, copy your Render URL (e.g., `https://intelliflow-ai-agent.onrender.com`).
+8. Update `AI_AGENT_URL` in your Node.js backend's `config.env` (and Render dashboard) to match this URL.
 
 ---
 

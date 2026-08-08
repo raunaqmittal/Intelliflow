@@ -98,6 +98,11 @@ const authLimiter = rateLimit({
 app.use('/api', limiter); // applying the rate limiter to all the routes that start with /api (i.e. all the api routes
 app.use('/api/v1/employees/login', authLimiter);
 app.use('/api/v1/employees/signup', authLimiter);
+
+// Simple health check for UptimeRobot
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'intelliflow-backend' });
+});
 app.use('/api/v1/clients/login', authLimiter);
 app.use('/api/v1/clients/signup', authLimiter);
 app.use('/api/v1/employees/forgotPassword', authLimiter);

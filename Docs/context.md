@@ -1,8 +1,8 @@
 # Project Context
 
-> **Last Updated:** 2026-08-08
-> **Current Stage:** Feature-Complete MVP — Post-launch refinement & AI workflow integration
-> **Overall Status:** Core request-to-project lifecycle fully implemented. AI agent (LangGraph + Groq) live. Employee-phone validation India-specific (known limitation). Deployment config present (Vercel for frontend). Backend runs locally / on Render.
+> **Last Updated:** 2026-08-09
+> **Current Stage:** Feature-Complete MVP — Repository cleanup complete. Production-ready codebase.
+> **Overall Status:** Core request-to-project lifecycle fully implemented. AI agent (LangGraph + Groq) live. Phone validation now E.164 international. Deployment on Vercel (frontend) + Render (backend + AI service).
 
 ---
 
@@ -144,7 +144,7 @@ Intelliflow/
 |   |   +-- employeeController.js
 |   |   +-- clientController.js
 |   |   +-- projectController.js
-|   |   +-- requestController.js   # Full request lifecycle (984 lines — most complex)
+|   |   +-- requestController.js   # Full request lifecycle (most complex controller)
 |   |   +-- taskController.js
 |   |   +-- errorController.js
 |   +-- models/
@@ -159,40 +159,49 @@ Intelliflow/
 |   |   +-- requestRoutes.js
 |   |   +-- projectRoutes.js
 |   |   +-- taskRoutes.js
-|   |   +-- diagnosticRoutes.js    # Debug only — should be removed
+|   |   +-- diagnosticRoutes.js    # Debug only — guarded by NODE_ENV check
 |   +-- Utilities/
-|       +-- aiWorkflowAgent.js     # NOW: thin axios proxy to Python service (~90 lines)
-|       +-- workflowGenerator.js   # Template fallback + employee suggestion wrapper
-|       +-- employeeSuggestion.js  # Employee match scoring
-|       +-- otp.js
-|       +-- email.js
-|       +-- appError.js
-|       +-- catchAsync.js
-|       +-- APIFeatures.js
-|       +-- projectStatusUpdater.js
+|   |   +-- aiWorkflowAgent.js     # Thin axios proxy to Python service
+|   |   +-- workflowGenerator.js   # Template fallback + employee suggestion wrapper
+|   |   +-- employeeSuggestion.js  # Employee match scoring
+|   |   +-- controllerUtils.js     # Shared: normalizePhone, normalizeDept, expandDeptAliases
+|   |   +-- otp.js
+|   |   +-- email.js
+|   |   +-- appError.js
+|   |   +-- catchAsync.js
+|   |   +-- APIFeatures.js
+|   |   +-- projectStatusUpdater.js
+|   +-- scripts/                   # Admin/maintenance scripts (see scripts/README.md)
+|   +-- tests/
+|       +-- backendTesting.js
 |
-+-- AI Service/                    # NEW: Python FastAPI LangGraph microservice
-|   +-- main.py                    # FastAPI app entry point (/run-agent, /health)
-|   +-- agent.py                   # LangGraph StateGraph (2-node: classify + generate)
-|   +-- prompts.py                 # All LLM prompt strings
-|   +-- schemas.py                 # Pydantic v2 models (replaces Zod)
-|   +-- fallbacks.py               # Static fallback workflow templates
-|   +-- requirements.txt           # Python dependencies
-|   +-- Dockerfile                 # For Hugging Face Spaces (port 7860)
-|   +-- .env                       # Local secrets (gitignored)
-|   +-- .env.example               # Template
-|   +-- README.md                  # Setup + HF Spaces deployment guide
++-- AI Service/                    # Python FastAPI LangGraph microservice
+|   +-- main.py
+|   +-- agent.py
+|   +-- prompts.py
+|   +-- schemas.py
+|   +-- fallbacks.py
+|   +-- requirements.txt
+|   +-- .env / .env.example
 |
 +-- Front End/
 |   +-- src/
 |   |   +-- App.tsx
 |   |   +-- contexts/UserContext.tsx
 |   |   +-- pages/ (client/ employee/ manager/)
+|   |   +-- utils/
+|   |   |   +-- dataParser.ts
+|   |   |   +-- phoneUtils.ts      # Shared: handlePhoneInput, formatPhoneDisplay, isValidPhone
+|   |   |   +-- errorHandler.ts
+|   |   +-- lib/api.ts             # Axios client with auth interceptor
 |   +-- vercel.json
 |
 +-- Data/
-+-- README.md
-+-- context.md
++-- Docs/
+|   +-- context.md
+|   +-- repo_cleanup_prompt.md
++-- README.md                      # Single consolidated README
++-- .gitignore                     # Single root .gitignore
 ```
 
 ---
@@ -698,26 +707,25 @@ employees <-------------------------------------------------------|
 
 ## 16. Current Milestone
 
-**Goal:** Production hardening & roadmap feature planning
+**Goal:** Production-ready clean codebase
 
 **Completed:**
 - Full request-to-project lifecycle with AI workflow generation
 - All three portals (client, employee, manager) functional
 - 2FA, OTP, email/SMS working
 - Frontend deployed on Vercel; backend on Render
+- Complete repository cleanup (see section 18 + 19)
 
 **In Progress:**
-- Employee suggestion UI improvements in manager RequestDetails view
+- Phone uniqueness constraint (requires data cleanup before re-enabling)
 
 **Blocked:** None
 
 **Next (ordered by priority):**
-1. Remove or guard `diagnosticRoutes.js` from production
-2. Re-enable phone number uniqueness constraint
-3. Generalize phone number validator to E.164 format
-4. Add Content Security Policy (CSP) to Helmet config
-5. Unify fallback workflow definitions into single source of truth
-6. Begin conversational ops interface (chat-based commands)
+1. Re-enable phone number uniqueness constraint after cleaning duplicate phone data
+2. Conversational ops interface (chat-based commands)
+3. Predictive scheduling (slippage detection)
+4. Audit logging (immutable event log)
 
 ---
 
@@ -738,4 +746,30 @@ employees <-------------------------------------------------------|
 7. **Multi-tenant SaaS:** Tenant isolation layer for enterprise white-labeling.
 8. **External integrations:** Slack/Teams notifications, Jira/GitHub sync.
 9. **HSTS:** Enforce once behind verified TLS.
-10. **Refactor:** Consider merging `workflowGenerator.js` into `aiWorkflowAgent.js` — the template path is now the fallback, not the primary.
+
+## 19. Repository Cleanup — Phase 2 (2026-08-09)
+
+A second, deeper cleanup pass was executed:
+
+### Shared Utility Extraction (Backend)
+- **`Back End/Utilities/controllerUtils.js`** (NEW) — Extracted `normalizePhone`, `normalizeDept`, `expandDeptAliases`, `expandDeptList` from 3–4 controllers where they were each copy-pasted. All controllers now import from this single source.
+- **Phone validation**: Standardized to E.164 international format (`+<digits>`) across the entire backend. Removed India-only hardcoding.
+
+### Shared Utility Extraction (Frontend)
+- **`Front End/src/utils/phoneUtils.ts`** (NEW) — Extracted `handlePhoneInput`, `formatPhoneDisplay`, `isValidPhone` from 6 files (`Signup.tsx`, `manager/Profile.tsx`, `employee/Profile.tsx`, `client/Profile.tsx`, `manager/AddEmployee.tsx`, `manager/AddClient.tsx`) where they were each copy-pasted.
+- **Phone format**: Updated from India-only (`+91` hardcoded) to international E.164.
+
+### Documentation Cleanup
+- **Consolidated 5 README files into 1 root `README.md`**: Merged content from `Back End/README.md`, `AI Service/README.md`, `Front End/README.md`. Deleted all 3 sub-READMEs. Kept `Back End/scripts/README.md` as a useful script reference table.
+- Root README now covers: overview, architecture, repo structure, local setup for all 3 services, API reference, test commands, deployment guide, env var tables, security section, roadmap.
+
+### Comment Quality
+- Removed verbose boilerplate comments in `app.js` (4-line middleware textbook explanation).
+- Restored all structural step-navigation comments (`// 1)`, `// 2)` etc.) in `authController.js` that were accidentally stripped.
+
+### Fallback Clarification
+- Added comment in `aiWorkflowAgent.js` clarifying why `LAST_RESORT_FALLBACK` is intentionally NOT merged with `workflowGenerator.js` templates — they serve different layers of the fallback hierarchy.
+
+### Verification
+- All 6 controllers, 5 models, 8 utilities, 6 routes, and `app.js` load cleanly.
+- Frontend `npm run build` passes (1848 modules, no errors).

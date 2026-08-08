@@ -1,116 +1,267 @@
-Intelliflow — Agentic Workflow OS for Cross‑Functional Teams
+# Intelliflow — Agentic Workflow OS for Cross-Functional Teams
 
-**Overview**
+Unified, end-to-end workflow management that turns client requests into structured projects, sprint plans, and actionable tasks across departments — with minimal manual coordination.
 
-- Unified, end-to-end workflow management that turns client requests into structured projects, sprint plans, and actionable tasks across departments (Engineering, QA/Testing, UX, Hardware, Product, DevOps) with minimal manual coordination.
-
-**Aim**
+## What It Does
 
 - **Single source of truth:** Centralize requests, approvals, projects, sprints, and tasks in one place.
 - **Reduce coordination overhead:** Automate setup, assignment, and status rollups so teams can focus on execution.
 - **Operate across functions:** Natively support software, hardware, UX, and operations workflows.
 
-**Why It’s Unique**
+## How It Works
 
-- **Cross‑discipline by design:** Handles software, hardware, UX, and operations in one system (not just dev-only tooling).
-- **Template‑driven workflows:** Encodes organizational best practices as reusable, auditable templates—no reinventing processes per project.
-- **Practical automation:** Automates where it helps, while preserving expert overrides and transparency.
-- **Productizable:** Built to be customized per enterprise with policies, approvals, access, and reporting.
+- **Intake → AI Classification:** Requests are analyzed by an AI agent (LangGraph + Groq) to detect project type and flag out-of-scope submissions.
+- **Dynamic Workflow Generation:** The AI generates a tailored task breakdown with hour estimates and required skills based on the project description.
+- **Rule-Based Fallbacks:** If the AI is unavailable or confidence is low, the system falls back to reliable rule-based templates with zero downtime.
+- **Execution Loop:** Employees use "My Tasks" to update status; projects auto-update when tasks complete.
+- **Smart Assignment:** AI-suggested employee matching based on skills and availability.
+- **Guardrails:** Rate limiting, input sanitization, CORS, JWT auth, and security headers out of the box.
 
-**How It Works (Agentic AI & Rule‑Based Hybrid)**
+---
 
-- **Intake → Agentic Classification:** Requests are automatically analyzed by an AI agent (powered by LangGraph + Groq) to detect project type and identify "Out of Scope" submissions instantly.
-- **Dynamic Workflow Generation:** Instead of static templates, the AI generates a tailored task breakdown, estimating hours and required skills based on the specific project description.
-- **Rule-Based Fallbacks:** If the AI is unavailable or the confidence is low, the system seamlessly falls back to reliable rule-based templates to ensure zero downtime.
-- **Execution loop:** Employees use “My Tasks” to update status; projects auto‑update when tasks complete.
-- **Smart Assignment:** AI-suggested employee matching based on skills and availability (In Progress).
-- **Guardrails:** Security, validation, and sane defaults (rate limiting, sanitization, CORS, JWT auth).
+## Tech Stack
 
-**Key Features**
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Node.js / Express, MongoDB / Mongoose, JWT |
+| **AI Service** | Python FastAPI, LangGraph, Groq (Llama 3.3), Pydantic |
+| **Frontend** | React 18, TypeScript, Vite, shadcn/ui, React Router |
+| **Deployment** | Render (Node.js + Python), Vercel (Frontend) |
 
-- **Authentication:** Employee and Client login, password reset, JWT-based sessions.
-- **Projects:** Creation, listing, status tracking, active sprints, per‑project task drill‑downs.
-- **Tasks:** Per‑employee view, status updates, reassignment, dependency representation.
-- **AI Classification:** Automated project categorization (Web, App, Prototype, Research) with scope detection.
-- **Dynamic Workflows:** AI-generated task breakdowns tailored to unique client requirements.
-- **Requests:** Multi-department approval flow that converts validated requests into active projects.
-- **Analytics:** Task status stats and AI performance metrics (confidence scores, fallback rates).
-- **Frontend UX:** React + TypeScript UI with role‑aware pages (employee, manager).
-- **API:** REST endpoints for employees, clients, projects, requests, and tasks.
+---
 
-**Tech Stack**
+## Repository Structure
 
-- **Backend:** Node.js/Express, MongoDB/Mongoose, JWT auth.
-- **AI/Agents:** LangGraph (State Machine), Groq (Llama 3.3 LLM), Zod (Structured Output).
-- **Frontend:** React (Vite + TypeScript), componentized UI, context auth.
-- **Structure:** `Back End/` (controllers, models, routes, utilities), `Front End/` (pages, components, lib), `Data/` for seeds.
+```
+Intelliflow/
+├── Back End/               # Node.js Express API
+│   ├── Controllers/        # Request handlers
+│   ├── models/             # Mongoose schemas
+│   ├── routes/             # Express routers
+│   ├── Utilities/          # Shared helpers (auth, AI proxy, workflow, phone, dept utils)
+│   ├── scripts/            # Admin & maintenance scripts (see scripts/README.md)
+│   ├── tests/              # Backend test suite
+│   ├── app.js              # Express app setup
+│   └── server.js           # Entry point
+│
+├── AI Service/             # Python FastAPI microservice
+│   ├── main.py             # FastAPI app + routes
+│   ├── agent.py            # LangGraph workflow agent
+│   ├── prompts.py          # LLM prompt templates
+│   ├── schemas.py          # Pydantic input/output models
+│   ├── fallbacks.py        # Static fallback workflows
+│   └── requirements.txt
+│
+├── Front End/              # React + TypeScript SPA
+│   └── src/
+│       ├── pages/          # client/, employee/, manager/ portals
+│       ├── components/     # common/ and ui/ shared components
+│       ├── contexts/       # Auth context (UserContext)
+│       ├── utils/          # dataParser, phoneUtils, errorHandler
+│       └── lib/            # API client (axios)
+│
+├── Data/                   # Seed data (JSON)
+├── Docs/                   # Project documentation
+├── .gitignore
+└── README.md
+```
 
-**Roadmap (Intelligent Automation & Agents)**
+---
 
-- **Advanced Allocation:** Optimize assignment by skills, performance, availability, workload, dependencies, deadlines using AI matching.
-- **Predictive Scheduling:** Forecast slippage, auto‑resequence tasks, and prompt mitigations.
-- **Conversational Ops:** Chat interface for “create project”, “assign QA”, “show blockers” with audit trails.
-- **Integrations:** Slack/Teams for updates; Jira/GitHub/CI for dev sync and auto‑progress signals.
-- **Compliance & Audit:** Role‑based access, approvals, immutable logs, PII/secret hygiene, SOC2‑ready patterns.
+## Local Setup
 
-**Product Vision (Enterprise‑Ready & Customizable)**
+### 1. Backend (Node.js)
 
-- **Multi‑tenant SaaS:** Tenant isolation with custom templates and policy packs per industry.
-- **Company‑specific optimization:** Ingest SOPs/policies to generate compliant workflows out‑of‑the‑box.
-- **Extensible data model:** Departments, roles, skills, and approval chains are fully configurable.
-- **Go‑to‑Market:** Offer starter templates for verticals (FinTech, Manufacturing, Agencies, HealthTech).
+```powershell
+cd "Back End"
+npm install
+
+# Create config.env from the required variables (see Security section below)
+# Then start:
+npm run dev         # development (nodemon)
+npm start           # production
+```
+
+### 2. AI Service (Python FastAPI)
+
+```powershell
+cd "AI Service"
+
+# Create and activate virtual environment
+python -m venv venv
+venv\Scripts\activate         # Windows
+# source venv/bin/activate    # macOS/Linux
+
+pip install -r requirements.txt
+
+# Copy and fill in environment variables
+copy .env.example .env
+
+# Start the service
+uvicorn main:app --reload --port 8000
+```
+
+### 3. Frontend (React)
+
+```powershell
+cd "Front End"
+npm install
+npm run dev         # development server
+npm run build       # production build
+```
+
+---
+
+## AI Service API
+
+### `GET /health`
+Health check. Returns `{ "status": "ok" }`.
+
+### `POST /run-agent`
+Runs the LangGraph AI workflow agent.
+
+**Headers:**
+```
+X-Internal-Key: <shared secret>
+Content-Type: application/json
+```
+
+**Request body:**
+```json
+{
+  "title": "E-commerce website for a clothing brand",
+  "description": "Build a full-stack online store with product catalog and Stripe payments",
+  "requirements": ["product catalog", "shopping cart", "Stripe integration"]
+}
+```
+
+**Response:**
+```json
+{
+  "requestType": "web_dev",
+  "isOutOfScope": false,
+  "outOfScopeReason": null,
+  "aiConfidence": "high",
+  "workflow": {
+    "estimatedDuration": 320,
+    "taskBreakdown": [{ "taskName": "...", "team": "...", "estimatedHours": 40 }]
+  },
+  "usedFallback": false,
+  "error": null
+}
+```
+
+---
+
+## Frontend Structure
+
+| Portal | Path | Access |
+|--------|------|--------|
+| Client | `/client/*` | Authenticated clients |
+| Employee | `/employee/*` | Authenticated employees |
+| Manager | `/manager/*` | Manager-role employees |
+
+**Running frontend tests (39 tests across all portals):**
+```powershell
+node ".\Front End\tests\frontendTesting.cjs"
+
+# Test specific portal:
+$env:MODE = "client"; node ".\Front End\tests\frontendTesting.cjs"
+$env:MODE = "employee"; node ".\Front End\tests\frontendTesting.cjs"
+$env:MODE = "manager"; node ".\Front End\tests\frontendTesting.cjs"
+```
+
+---
+
+## Backend Test Suite
+
+A comprehensive test suite lives at `Back End/tests/backendTesting.js`.
+
+**Smoke Test (default — generic endpoint coverage):**
+```powershell
+node "Back End/tests/backendTesting.js"
+```
+
+**Specific Scenario (real client data, full lifecycle):**
+```powershell
+$env:MODE = "specific"; node "Back End/tests/backendTesting.js"
+```
+
+**Environment variables for tests:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MODE` | `smoke` | `smoke` or `specific` |
+| `BASE_URL` | `http://localhost:3000/api/v1` | API base URL |
+| `PROGRESSIVE` | `false` | Complete tasks per-sprint before advancing (specific mode) |
+| `VERBOSE` | `false` | Detailed logging |
+
+---
+
+## Deployment
+
+| Service | Platform | Notes |
+|---------|----------|-------|
+| Frontend | **Vercel** | Auto-deploys from `Front End/` |
+| Node.js Backend | **Render** | Set `NODE_ENV=production`, add all env vars |
+| Python AI Service | **Render (Free Tier)** | Set root directory to `AI Service` |
+
+**Keeping the AI Service awake (Render Free Tier):**
+Render's free tier sleeps after 15 minutes of inactivity. Use [UptimeRobot](https://uptimerobot.com) (free) to ping `https://<your-render-app>.onrender.com/health` every 5 minutes.
+
+---
+
+## Environment Variables
+
+### Backend (`Back End/config.env`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NODE_ENV` | Yes | `development` or `production` |
+| `PORT` | No | Server port (default: `3000`) |
+| `DATABASE` | Yes | MongoDB connection string |
+| `JWT_SECRET` | Yes | Secret for signing JWTs |
+| `JWT_EXPIRES_IN` | Yes | JWT expiry e.g. `7d` |
+| `AI_AGENT_URL` | Yes | Python AI service base URL |
+| `AI_AGENT_INTERNAL_KEY` | Yes | Shared secret for AI service auth |
+| `AI_WORKFLOW_TIMEOUT_MS` | No | Timeout in ms (default: `35000`) |
+| `FRONTEND_URL` | Yes | Frontend origin for CORS |
+| `EMAIL_HOST` | Yes | SMTP host |
+| `EMAIL_PORT` | Yes | SMTP port |
+| `EMAIL_USERNAME` | Yes | SMTP username |
+| `EMAIL_PASSWORD` | Yes | SMTP password |
+| `OTP_EXPIRY_MINUTES` | No | OTP validity window (default: `5`) |
+
+### AI Service (`AI Service/.env`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GROQ_API_KEY` | Yes | Groq API key from console.groq.com |
+| `INTERNAL_API_KEY` | Yes | Shared secret — must match `AI_AGENT_INTERNAL_KEY` |
+| `GROQ_MODEL` | No | LLM model (default: `llama-3.3-70b-versatile`) |
+| `AI_WORKFLOW_TIMEOUT_SECS` | No | Agent timeout (default: `30`) |
+
+---
 
 ## Security
 
-Intelliflow includes practical protections out of the box to reduce common attack surface while keeping development friction low.
+- **Security headers (Helmet + CSP):** Guards against clickjacking, MIME sniffing, and XSS.
+- **Rate limiting:** 100 requests/hour per IP on all `/api` endpoints.
+- **NoSQL injection sanitization:** Removes `$` and `.` Mongo operators from user input.
+- **XSS cleaning:** Scrubs malicious script/HTML from request bodies.
+- **HPP protection:** Prevents duplicate query parameter abuse.
+- **Restricted CORS:** Only `FRONTEND_URL` is permitted.
+- **JWT sessions:** Signed tokens with expiry; invalidated on password change.
+- **Hashed passwords:** bcrypt with cost factor 12.
+- **Cryptographic reset tokens:** Hashed before storage, short expiry.
+- **Internal API key:** `X-Internal-Key` header guards the Node↔Python service boundary.
 
+---
 
-### Web & API Hardening
+## Roadmap
 
-- **Security headers (Helmet):** Adds industry‑standard headers that help guard against clickjacking, MIME sniffing, and other browser attack vectors.
-- **Body size limiting:** Incoming JSON payloads capped at 10kb to prevent oversized request abuse.
-- **URL normalization:** Collapses duplicate slashes to avoid strange routing edge cases.
-
-### Abuse & Flood Prevention
-
-- **Rate limiting:** All `/api` endpoints limited to 100 requests/hour per IP—slows brute force and scripted scraping.
-
-### Input & Data Sanitization
-
-- **NoSQL injection sanitization:** Removes `$` and `.` Mongo operators from user‑supplied input fields.
-- **XSS cleaning:** Scrubs potentially malicious script/HTML fragments from request bodies.
-- **Parameter pollution protection (HPP):** Prevents attackers from sending repeated query parameters to alter server logic; only an allow‑listed set can repeat.
-
-### Cross‑Origin Safety
-
-- **Restricted CORS origin:** Only the configured `FRONTEND_URL` is permitted; prevents arbitrary third‑party web apps from calling the API from browsers.
-
-### Authentication & Session Integrity
-
-- **JWT tokens with expiry:** Each login issues a signed token; expiration enforces session turnover.
-- **HttpOnly cookies (production secure):** Cookies cannot be read via frontend JavaScript and are marked `secure` over HTTPS in production.
-- **Password change invalidation:** Tokens issued before a password change are rejected automatically.
-
-### Password & Account Recovery
-
-- **Hashed passwords:** Stored using bcrypt (cost factor 12)—never plain text.
-- **Hidden password field:** Password not returned in standard query responses.
-- **Reset tokens:** Cryptographically random, hashed before storage, short expiration window.
-
-### Operational Visibility
-
-- **Request logging (dev):** `morgan` provides per‑request context for debugging and forensic review during development.
-
-### Secrets & Configuration Hygiene
-
-- **Environment isolation:** Sensitive credentials live in `config.env`, which is ignored by Git and removed from repository history.
-
-### Future Hardening Opportunities
-
-- **Content Security Policy (CSP):** Further restrict script/style/image sources.
-- **HSTS:** Enforce long‑term HTTPS once deployed behind TLS.
-- **Enhanced CORS policies:** Granular header/method restrictions and credential handling.
-- **Audit/event logging:** Immutable trails for compliance and regulated environments.
-  
-
-  .
+- **Advanced Allocation:** AI-based assignment optimized by skills, availability, and workload.
+- **Conversational Ops:** Chat interface for natural language project/task commands.
+- **Predictive Scheduling:** Slippage forecasting and auto-resequencing.
+- **Integrations:** Slack/Teams notifications; Jira/GitHub sync.
+- **Multi-tenant SaaS:** Tenant isolation with custom templates and policy packs.

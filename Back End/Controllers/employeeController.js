@@ -3,22 +3,7 @@ const Task = require('../models/taskModel');
 const catchAsync = require('../Utilities/catchAsync');
 const AppError = require('../Utilities/appError');
 const OTPService = require('../Utilities/otp');
-
-// Normalize phone number to ensure +91 prefix
-const normalizePhone = (phone) => {
-  if (!phone) return undefined; // Return undefined instead of empty value
-  // Remove all non-digits
-  let digits = phone.replace(/\D/g, '');
-  if (!digits) return undefined; // If no digits after cleaning, return undefined
-  
-  // If doesn't start with 91, add it
-  if (!digits.startsWith('91')) {
-    digits = '91' + digits;
-  }
-  
-  // Always return with + prefix for consistency
-  return `+${digits}`;
-};
+const { normalizePhone, normalizeDept, expandDeptAliases } = require('../Utilities/controllerUtils');
 
 const filterObj = (obj, ...allowedFields) => {
   const newObj = {};
@@ -29,11 +14,6 @@ const filterObj = (obj, ...allowedFields) => {
 };
 
 exports.getAllEmployees = catchAsync(async (req, res, next) => {
-  // Optional server-side filtering
-  // Query params:
-  // - departments: comma-separated list (e.g., development,design)
-  // - availability: 'Available' | 'Busy' | 'On Leave'
-  // - q: search by name/email substring (case-insensitive)
 
   const filter = {};
 
@@ -51,48 +31,23 @@ exports.getAllEmployees = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Fetch all employees first (with availability/search filters)
   const allEmployees = await Employee.find(filter);
 
-  // If departments param is present, filter client-side with flexible matching
   let employees = allEmployees;
   if (req.query.departments) {
-    const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-    const ALIASES = {
-      qa: ['qualityassurance', 'testing', 'qatesting', 'qatest'],
-      qualityassurance: ['qa', 'testing'],
-      testing: ['qa', 'qualityassurance'],
-      research: ['rnd', 'r&d', 'researchanddevelopment', 'randd'],
-      development: ['dev', 'softwaredevelopment', 'engineering'],
-      design: ['uiux', 'ui', 'ux', 'uiandux'],
-    };
-    const expandAliases = (term) => {
-      const n = normalize(term);
-      const set = new Set([n]);
-      Object.entries(ALIASES).forEach(([k, vals]) => {
-        if (n === k || vals.includes(n)) {
-          set.add(k);
-          vals.forEach((v) => set.add(v));
-        }
-      });
-      return Array.from(set);
-    };
-    
     const list = String(req.query.departments)
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    
-    const normalizedTerms = list.flatMap(expandAliases);
+
+    const normalizedTerms = list.flatMap(expandDeptAliases);
     const uniqueTerms = Array.from(new Set(normalizedTerms));
 
     employees = allEmployees.filter(emp => {
       const dept = emp.department || '';
       if (!dept) return false;
-      const empKey = normalize(dept);
-      // Exact match
+      const empKey = normalizeDept(dept);
       if (uniqueTerms.includes(empKey)) return true;
-      // Containment match (both directions)
       for (const term of uniqueTerms) {
         if (term && (term.includes(empKey) || empKey.includes(term))) return true;
       }
@@ -167,7 +122,6 @@ exports.deleteEmployee = catchAsync(async (req, res, next) => {
     return next(new AppError('No employee found with that ID', 404));
   }
 
-  // Check if the logged-in manager's department matches the employee's department
   const manager = await Employee.findById(req.user.id);
   const managerDepartment = (manager.approvesDepartments && manager.approvesDepartments.length > 0) 
     ? manager.approvesDepartments[0] 
@@ -177,7 +131,6 @@ exports.deleteEmployee = catchAsync(async (req, res, next) => {
     return next(new AppError('You can only delete employees from your own department', 403));
   }
 
-  // Check for pending tasks (status not 'Completed' or 'Done')
   const pendingTasks = await Task.find({
     $or: [
       { assignedTo: employee.employee_id },
@@ -190,10 +143,8 @@ exports.deleteEmployee = catchAsync(async (req, res, next) => {
     return next(new AppError(`Cannot delete employee with ${pendingTasks.length} pending task(s). Please reassign or complete these tasks first.`, 400));
   }
 
-  // Delete the employee
   await Employee.findByIdAndDelete(req.params.id);
 
-  // Remove employee from all task assignments (only where fields exist and are arrays)
   await Task.updateMany(
     {
       $or: [
@@ -222,19 +173,16 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   
   const filteredBody = filterObj(req.body, 'name', 'availability', 'phone', 'twoFactorEnabled', 'twoFactorMethod');
   
-  // Normalize phone number if provided
   if (filteredBody.phone) {
     filteredBody.phone = normalizePhone(filteredBody.phone);
   }
   
-  // If phone is being updated, reset phoneVerified and disable 2FA
   if (filteredBody.phone) {
     const employee = await Employee.findById(req.user.id);
     
     if (employee.phone !== filteredBody.phone) {
       filteredBody.phoneVerified = false;
       filteredBody.twoFactorEnabled = false; // Disable 2FA until new number is verified
-      // Clear any existing OTP data
       filteredBody.otpCode = undefined;
       filteredBody.otpExpires = undefined;
       filteredBody.otpAttempts = 0;
@@ -243,29 +191,24 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     }
   }
   
-  // Validate 2FA requirements
   if (req.body.twoFactorEnabled === true) {
     const employee = await Employee.findById(req.user.id);
     const twoFactorMethod = req.body.twoFactorMethod || employee.twoFactorMethod;
     
     if (twoFactorMethod === 'sms') {
-      // Check if phone exists (either in DB or being updated)
       const phoneToUse = filteredBody.phone || employee.phone;
       if (!phoneToUse) {
         return next(new AppError('Please add a phone number before enabling SMS 2FA', 400));
       }
       
-      // If phone is being changed, require verification of new number
       if (filteredBody.phone && filteredBody.phone !== employee.phone) {
         return next(new AppError('Please verify your new phone number before enabling SMS 2FA', 400));
       }
       
-      // Require phone verification for SMS 2FA
       if (!employee.phoneVerified) {
         return next(new AppError('Please verify your phone number before enabling SMS 2FA', 400));
       }
     } else if (twoFactorMethod === 'email') {
-      // Require email verification for email 2FA
       if (!employee.emailVerified) {
         return next(new AppError('Please verify your email before enabling email 2FA', 400));
       }
@@ -292,15 +235,12 @@ exports.sendPhoneVerificationOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('Please add a phone number first', 400));
   }
 
-  // Rate limiting check
   if (!OTPService.canSendOTP(employee.otpLastSent)) {
     return next(new AppError('Please wait before requesting another OTP', 429));
   }
 
-  // Generate 6-digit OTP
   const otp = OTPService.generateOTP();
   
-  // Store hashed OTP in database along with the phone number it was sent to
   employee.otpCode = OTPService.hashOTP(otp);
   employee.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
   employee.otpAttempts = 0;
@@ -308,7 +248,6 @@ exports.sendPhoneVerificationOTP = catchAsync(async (req, res, next) => {
   employee.otpPhone = employee.phone; // Store phone number OTP was sent to
   await employee.save({ validateBeforeSave: false });
 
-  // Send OTP via SMS
   if (process.env.NODE_ENV === 'development') {
     console.log(`📱 Sending phone verification OTP to ${employee.phone}...`);
   }
@@ -347,9 +286,7 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
 
   const employee = await Employee.findById(req.user.id).select('+otpCode +otpPhone');
 
-  // Check if phone number has changed since OTP was sent
   if (employee.otpPhone && employee.phone !== employee.otpPhone) {
-    // Phone changed - invalidate old OTP
     employee.otpCode = undefined;
     employee.otpExpires = undefined;
     employee.otpAttempts = 0;
@@ -358,7 +295,6 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
     return next(new AppError('Phone number has changed. Please request a new verification code for your current number.', 400));
   }
 
-  // Debug logging
   if (process.env.NODE_ENV === 'development') {
     console.log('📱 Phone Verification Debug:');
     console.log('Provided OTP:', otp);
@@ -367,7 +303,6 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
     console.log('OTP Attempts:', employee.otpAttempts);
   }
 
-  // Verify OTP
   const isValid = OTPService.verifyOTP(
     otp,
     employee.otpCode,
@@ -399,7 +334,6 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
     }
   }
 
-  // OTP is valid - mark phone as verified
   employee.phoneVerified = true;
   employee.otpCode = undefined;
   employee.otpExpires = undefined;
@@ -412,7 +346,6 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
   });
 });
 
-// Email Verification OTP
 exports.sendEmailVerificationOTP = catchAsync(async (req, res, next) => {
   const employee = await Employee.findById(req.user.id);
   
@@ -420,22 +353,18 @@ exports.sendEmailVerificationOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('No email address found', 400));
   }
 
-  // Rate limiting check
   if (!OTPService.canSendOTP(employee.otpLastSent)) {
     return next(new AppError('Please wait before requesting another OTP', 429));
   }
 
-  // Generate 6-digit OTP
   const otp = OTPService.generateOTP();
   
-  // Store hashed OTP in database
   employee.otpCode = OTPService.hashOTP(otp);
   employee.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
   employee.otpAttempts = 0;
   employee.otpLastSent = Date.now();
   await employee.save({ validateBeforeSave: false });
 
-  // Send OTP via Email
   if (process.env.NODE_ENV === 'development') {
     console.log(`📧 Sending email verification OTP to ${employee.email}...`);
   }
@@ -469,7 +398,6 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
 
   const employee = await Employee.findById(req.user.id).select('+otpCode');
 
-  // Debug logging
   if (process.env.NODE_ENV === 'development') {
     console.log('📧 Email Verification Debug:');
     console.log('Provided OTP:', otp);
@@ -478,7 +406,6 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
     console.log('OTP Attempts:', employee.otpAttempts);
   }
 
-  // Verify OTP
   const isValid = OTPService.verifyOTP(
     otp,
     employee.otpCode,
@@ -510,7 +437,6 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
     }
   }
 
-  // OTP is valid - mark email as verified
   employee.emailVerified = true;
   employee.otpCode = undefined;
   employee.otpExpires = undefined;
@@ -544,37 +470,30 @@ exports.deleteMe = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get dashboard data for logged-in employee
 exports.getMyDashboard = catchAsync(async (req, res, next) => {
   const Task = require('../models/taskModel');
   const Project = require('../models/projectModel');
 
-  // Get employee details to find employee_id
   const employee = await Employee.findById(req.user.id);
   if (!employee) {
     return next(new AppError('Employee not found', 404));
   }
 
-  // Get employee's tasks
   const tasks = await Task.find({ assigned_to: employee.employee_id });
   
-  // Count tasks by status
   const totalTasks = tasks.length;
   const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'To Do').length;
   const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
   const completedTasks = tasks.filter(t => t.status === 'Done' || t.status === 'Completed').length;
 
-  // Calculate completion rate
   const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : 0;
 
-  // Get recent tasks (last 10)
   const recentTasks = await Task.find({ assigned_to: employee.employee_id })
     .sort('-createdAt')
     .limit(10)
     .populate('project', 'project_title client_name')
     .select('task_name status priority sprint createdAt');
 
-  // Get unique projects employee is involved in
   const projectIds = [...new Set(tasks.map(t => t.project).filter(p => p))];
   const projects = await Project.find({ _id: { $in: projectIds } })
     .select('project_title status client_name');
@@ -593,7 +512,6 @@ exports.getMyDashboard = catchAsync(async (req, res, next) => {
   });
 });
 
-// List projects the logged-in employee is involved in (safe fields only)
 exports.getMyProjects = catchAsync(async (req, res, next) => {
   const Task = require('../models/taskModel');
   const Project = require('../models/projectModel');
@@ -619,7 +537,6 @@ exports.getMyProjects = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get safe project details for an employee, including workflow summary and task statuses
 exports.getMyProjectDetails = catchAsync(async (req, res, next) => {
   const Task = require('../models/taskModel');
   const Project = require('../models/projectModel');
@@ -629,7 +546,6 @@ exports.getMyProjectDetails = catchAsync(async (req, res, next) => {
 
   const { projectId } = req.params;
 
-  // Authorization: ensure this employee is assigned to at least one task in this project
   const hasAccess = await Task.exists({ project: projectId, assigned_to: me.employee_id });
   if (!hasAccess) return next(new AppError('You are not authorized to view this project', 403));
 
@@ -641,7 +557,6 @@ exports.getMyProjectDetails = catchAsync(async (req, res, next) => {
     .select('_id task_id task_name status sprint sprint_number priority description')
     .sort('sprint_number task_id');
 
-  // Normalize and filter out Sprint 0 or invalid sprint numbers for employee view
   const tasks = allTasks.filter(t => {
     const sn = typeof t.sprint_number === 'number'
       ? t.sprint_number
@@ -651,7 +566,6 @@ exports.getMyProjectDetails = catchAsync(async (req, res, next) => {
     return sn > 0;
   });
 
-  // Build workflow summary by sprint
   const sprintsMap = new Map();
   for (const t of tasks) {
     let sn = 0;

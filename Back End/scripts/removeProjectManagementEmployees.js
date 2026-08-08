@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const Employee = require('./models/employeeModel');
+const Employee = require('../models/employeeModel');
 
 dotenv.config({ path: require('path').join(__dirname, 'config.env') });
 

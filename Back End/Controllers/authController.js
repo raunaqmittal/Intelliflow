@@ -7,6 +7,7 @@ const {promisify} = require('util');
 const sendEmail = require('./../Utilities/email');
 const crypto = require('crypto');
 const OTPService = require('./../Utilities/otp');
+const { normalizePhone } = require('./../Utilities/controllerUtils');
 
 const signToken = id => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -14,29 +15,9 @@ const signToken = id => {
   });
 }
 
-// Normalize phone number to ensure +91 prefix
-const normalizePhone = (phone) => {
-  if (!phone) return undefined; // Return undefined instead of empty value
-  // Remove all non-digits
-  let digits = phone.replace(/\D/g, '');
-  if (!digits) return undefined; // If no digits after cleaning, return undefined
-  
-  // If doesn't start with 91, add it
-  if (!digits.startsWith('91')) {
-    digits = '91' + digits;
-  }
-  
-  // Always return with + prefix for consistency
-  return `+${digits}`;
-}
 
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
-
-  // Using localStorage + Authorization header (cross-domain compatible)
-  // No cookies needed - frontend stores token and sends via Authorization header
-
-  //removing password from output
   user.password = undefined;
 
   res.status(statusCode).json({
@@ -48,9 +29,7 @@ const createSendToken = (user, statusCode, res) => {
   });
 };
 
-// Employee signup
 exports.signupEmployee = catchAsync(async (req, res, next) => {
-  // Check if email already exists
   const existingEmployee = await Employee.findOne({ email: req.body.email });
   if (existingEmployee) {
     return next(new AppError('An account with this email already exists', 400));
@@ -60,16 +39,13 @@ exports.signupEmployee = catchAsync(async (req, res, next) => {
   let assignedRole = 'employee'; // Default role
   
   if (req.body.role) {
-    // If user is authenticated as manager, use provided role
     if (req.user && req.user.role === 'manager') {
       assignedRole = req.body.role;
     } else {
-      // Public signup - use the role they provided
       assignedRole = req.body.role;
     }
   }
   
-  // Auto-detect if the role is a manager role and set approver fields
   const isManagerRole = /manager|lead|head|director|chief|supervisor/i.test(assignedRole);
   const approverFields = isManagerRole ? {
     isApprover: true,
@@ -96,9 +72,7 @@ exports.signupEmployee = catchAsync(async (req, res, next) => {
   createSendToken(newEmployee, 201, res);
 });
 
-// Client signup
 exports.signupClient = catchAsync(async (req, res, next) => {
-  // Check if email already exists
   const existingClient = await Client.findOne({ contact_email: req.body.contact_email });
   if (existingClient) {
     return next(new AppError('An account with this email already exists', 400));
@@ -118,7 +92,6 @@ exports.signupClient = catchAsync(async (req, res, next) => {
   createSendToken(newClient, 201, res);
 });
 
-// Employee login
 exports.loginEmployee = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
@@ -135,7 +108,6 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
 
   // 3) Check if 2FA is enabled
   if (employee.twoFactorEnabled) {
-    // Verify appropriate verification based on 2FA method
     if (employee.twoFactorMethod === 'sms' && (!employee.phone || !employee.phoneVerified)) {
       return next(new AppError('SMS 2FA is enabled but phone is not verified. Please contact support.', 400));
     }
@@ -143,12 +115,10 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
       return next(new AppError('Email 2FA is enabled but email is not verified. Please contact support.', 400));
     }
 
-    // Rate limiting check
     if (!OTPService.canSendOTP(employee.otpLastSent)) {
       return next(new AppError('Please wait before requesting another OTP', 429));
     }
 
-    // Generate and send OTP
     const otp = OTPService.generateOTP();
     employee.otpCode = OTPService.hashOTP(otp);
     employee.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
@@ -156,13 +126,11 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
     employee.otpLastSent = Date.now();
     await employee.save({ validateBeforeSave: false });
 
-    // Send OTP only via chosen 2FA method
     let otpSent = false;
     let sentMethod = '';
     let maskedDestination = '';
 
     if (employee.twoFactorMethod === 'sms') {
-      // Send via SMS only
       const smsResult = await OTPService.sendSMS(employee.phone, otp);
       if (smsResult.success || smsResult.devMode) {
         otpSent = true;
@@ -170,19 +138,16 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
         maskedDestination = OTPService.maskPhone(employee.phone);
       }
     } else if (employee.twoFactorMethod === 'email') {
-      // Send via Email only - respond immediately, send in background
       otpSent = true;
       sentMethod = 'email';
       maskedDestination = OTPService.maskEmail(employee.email);
       
-      // Send email in background (non-blocking)
       OTPService.sendEmail(employee.email, otp).catch((error) => {
         console.error('❌ Failed to send login OTP email:', error.message);
       });
     }
     
     if (!otpSent) {
-      // Failed to send OTP, clear it
       if (process.env.NODE_ENV === 'development') {
         console.error(`❌ Failed to send login OTP via ${employee.twoFactorMethod}`);
       }
@@ -211,7 +176,6 @@ exports.loginEmployee = catchAsync(async (req, res, next) => {
   createSendToken(employee, 200, res);
 });
 
-// Client login
 exports.loginClient = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
@@ -228,7 +192,6 @@ exports.loginClient = catchAsync(async (req, res, next) => {
 
   // 3) Check if 2FA is enabled
   if (client.twoFactorEnabled) {
-    // Verify appropriate verification based on 2FA method
     if (client.twoFactorMethod === 'sms' && (!client.phone || !client.phoneVerified)) {
       return next(new AppError('SMS 2FA is enabled but phone is not verified. Please contact support.', 400));
     }
@@ -236,12 +199,10 @@ exports.loginClient = catchAsync(async (req, res, next) => {
       return next(new AppError('Email 2FA is enabled but email is not verified. Please contact support.', 400));
     }
 
-    // Rate limiting check
     if (!OTPService.canSendOTP(client.otpLastSent)) {
       return next(new AppError('Please wait before requesting another OTP', 429));
     }
 
-    // Generate and send OTP
     const otp = OTPService.generateOTP();
     client.otpCode = OTPService.hashOTP(otp);
     client.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
@@ -249,13 +210,11 @@ exports.loginClient = catchAsync(async (req, res, next) => {
     client.otpLastSent = Date.now();
     await client.save({ validateBeforeSave: false });
 
-    // Send OTP only via chosen 2FA method
     let otpSent = false;
     let sentMethod = '';
     let maskedDestination = '';
 
     if (client.twoFactorMethod === 'sms') {
-      // Send via SMS only
       const smsResult = await OTPService.sendSMS(client.phone, otp);
       if (smsResult.success || smsResult.devMode) {
         otpSent = true;
@@ -263,19 +222,16 @@ exports.loginClient = catchAsync(async (req, res, next) => {
         maskedDestination = OTPService.maskPhone(client.phone);
       }
     } else if (client.twoFactorMethod === 'email') {
-      // Send via Email only - respond immediately, send in background
       otpSent = true;
       sentMethod = 'email';
       maskedDestination = OTPService.maskEmail(client.contact_email);
       
-      // Send email in background (non-blocking)
       OTPService.sendEmail(client.contact_email, otp).catch((error) => {
         console.error('❌ Failed to send client login OTP email:', error.message);
       });
     }
     
     if (!otpSent) {
-      // Failed to send OTP, clear it
       if (process.env.NODE_ENV === 'development') {
         console.error(`❌ Failed to send client login OTP via ${client.twoFactorMethod}`);
       }
@@ -304,10 +260,7 @@ exports.loginClient = catchAsync(async (req, res, next) => {
   createSendToken(client, 200, res);
 });
 
-// Logout - client handles token removal from localStorage
 exports.logout = catchAsync(async (req, res, next) => {
-  // No server-side cleanup needed for token-based auth
-  // Frontend removes token from localStorage
   
   res.status(200).json({
     status: 'success',
@@ -316,7 +269,7 @@ exports.logout = catchAsync(async (req, res, next) => {
 });
 
 exports.protect = catchAsync(async (req, res, next) => {
-  // 1) Getting token and check if it's there
+  // 1) Get token and check if it exists
   let token;
   if (
     req.headers.authorization && 
@@ -331,8 +284,8 @@ exports.protect = catchAsync(async (req, res, next) => {
     );
   }
   
-  // 2) Verification token
-  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET) ;
+  // 2) Verify token
+  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
   
 
   // 3) Check if user still exists (Employee or Client)
@@ -342,8 +295,8 @@ exports.protect = catchAsync(async (req, res, next) => {
     return next(new AppError('The user belonging to this token does no longer exist.', 401));
   }
 
-  // 4) Check if user changed password after the token was issued
   
+  // 4) Check if user changed password after the token was issued
   if(currentUser.changedPasswordAfter(decoded.iat)){
     return next(new AppError('User recently changed password! Please log in again.',401));
   }
@@ -356,7 +309,6 @@ exports.protect = catchAsync(async (req, res, next) => {
 
 exports.restrictTo = (...roles) => {
   return (req, res, next) => {
-    // roles ['admin', 'lead-guide']. role='user'
     if (!roles.includes(req.user.role)) { // we had defined req.user in protect middleware
       return next(
         new AppError('You do not have permission to perform this action', 403)
@@ -370,7 +322,7 @@ exports.restrictTo = (...roles) => {
 exports.forgotPassword = catchAsync(async (req, res, next) => {
   const { email, method } = req.body; // method: 'sms' or 'email'
 
-  // 1) Get user based on POSTed email (check Employee or Client)
+  // 1) Find user based on POSTed email (check Employee or Client)
   let user = await Employee.findOne({ email: req.body.email }).select('+otpCode');
   let userType = 'employees';
   
@@ -385,30 +337,24 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
   const emailAddress = user.email || user.contact_email;
 
-  // ========== SINGLE PATH: SEND OTP VIA SMS *OR* EMAIL RESET LINK (USER CHOICE) ==========
 
   if (method === 'sms') {
-    // SMS OTP PATH
     if (!user.phone) {
       return next(new AppError('No phone number registered with this account.', 400));
     }
 
-    // Rate limiting check
     if (!OTPService.canSendOTP(user.otpLastSent)) {
       return next(new AppError('Please wait before requesting another OTP', 429));
     }
 
-    // Generate 6-digit OTP
     const otp = OTPService.generateOTP();
     
-    // Store hashed OTP in database
     user.otpCode = OTPService.hashOTP(otp);
     user.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
     user.otpAttempts = 0;
     user.otpLastSent = Date.now();
     await user.save({ validateBeforeSave: false });
 
-    // Send OTP via SMS only
     if (process.env.NODE_ENV === 'development') {
       console.log(`📱 Sending password reset OTP to ${user.phone}...`);
     }
@@ -418,7 +364,6 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     }
     
     if (!smsResult.success && !smsResult.devMode) {
-      // SMS failed, clear OTP
       user.otpCode = undefined;
       user.otpExpires = undefined;
       await user.save({ validateBeforeSave: false });
@@ -433,32 +378,26 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
       expiresIn: process.env.OTP_EXPIRY_MINUTES || 5
     });
   } else {
-    // EMAIL RESET LINK PATH (default)
-    // Generate password reset token
+    // 2) Email reset link path (default)
     const resetToken = user.createPasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    // Construct reset URL
     const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetURL = `${frontendURL}/reset-password/${resetToken}`;
     const message = `Forgot your password? Click this link to reset it:\n\n${resetURL}\n\nThis link is valid for ${process.env.OTP_EXPIRY_MINUTES || 5} minutes.\n\nIf you didn't request a password reset, please ignore this email!`;
 
-    // Respond immediately, send email in background (don't wait for it)
     const response = {
       status: 'success',
       method: 'email',
       message: 'Password reset link sent to your email'
     };
 
-    // In development mode, include reset URL
     if (process.env.NODE_ENV === 'development') {
       response.debug = { resetURL };
     }
 
-    // Send response immediately
     res.status(200).json(response);
 
-    // Send email in background (non-blocking)
     sendEmail({
       email: emailAddress,
       subject: 'Password Reset - Intelliflow',
@@ -466,7 +405,6 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     }).then(() => {
       console.log(`✅ Password reset email sent successfully to ${emailAddress}`);
     }).catch(err => {
-      // Log detailed error but don't fail the request since we already responded
       console.error('❌ Background email sending failed:');
       console.error('  Email:', emailAddress);
       console.error('  Error:', err.message);
@@ -479,7 +417,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
 
 exports.resetPassword = catchAsync(async (req, res, next) => {
-  // 1) Get user based on the token (check Employee, Client, then User)
+  // 1) Find user based on token
   const hashedToken = crypto
     .createHash('sha256')
     .update(req.params.token)
@@ -497,7 +435,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     });
   }
   
-  // 2) If token has not expired, and there is user, set the new password
+  // 2) Validate token & set new password
   if (!user) {
     return next(new AppError('Token is invalid or has expired', 400));
   }
@@ -506,45 +444,34 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
   await user.save();
-  // 3) Update changedPasswordAt property for the user
-  // 4) Log the user in, send JWT
+  // 3) Log user in, send JWT
   createSendToken(user, 200, res);
  
 
 });
 
 exports.updatePassword = catchAsync(async (req, res, next) => {
-  // 1) Get user from collection (check Employee or Client based on req.user)
+  // 1) Find user (Employee or Client)
   let user = await Employee.findOne({ _id: req.user.id }).select('+password');
   
   if (!user) {
     user = await Client.findOne({ _id: req.user.id }).select('+password');
   }
   
-  // we use .select('+password') because in models we have set select: false for password field
-  // which means by default it will not be selected so to select it we have to use + sign
   if(!user){
     return next(new AppError('There is no user with that email address.', 404));
   }
-  // 2) Check if POSTed current password is correct
+  // 2) Check if current password is correct
   if (!(await user.correctPassword(req.body.passwordCurrent, user.password))) {
     return next(new AppError('Your current password is wrong.', 401));
   }
-  // 3) If so, update password
+  // 3) Update password and log user in
   user.password = req.body.password;
   user.passwordConfirm = req.body.passwordConfirm;
   await user.save();
-  // findByIdAndUpdate will NOT work as intended!
-  // we have to use user.save() because we have to run the validators and the pre save middleware which is not possible with findByIdAndUpdate
-  // also we have to make sure that the passwordConfirm field is not saved in the database so we have set it to undefined in the pre save middleware in the model
-  // also we have to make sure that the password is hashed before saving it to the database which is also done in the pre save middleware in the model
-  // so we have to use user.save() instead of findByIdAndUpdate
-  // 4) Log user in, send JWT
   createSendToken(user, 200, res);
-
 });
 
-// Verify OTP for password reset
 exports.verifyResetOTP = catchAsync(async (req, res, next) => {
   const { email, otpCode } = req.body;
 
@@ -552,7 +479,7 @@ exports.verifyResetOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('Please provide email and OTP code', 400));
   }
 
-  // 1) Find user by email (check Employee or Client)
+  // 1) Find user by email (Employee or Client)
   let user = await Employee.findOne({ email }).select('+otpCode');
   let userType = 'employees';
   
@@ -571,7 +498,6 @@ exports.verifyResetOTP = catchAsync(async (req, res, next) => {
   }
 
   if (OTPService.isExpired(user.otpExpires)) {
-    // Clear expired OTP
     user.otpCode = undefined;
     user.otpExpires = undefined;
     user.otpAttempts = 0;
@@ -580,9 +506,8 @@ exports.verifyResetOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('OTP has expired. Please request a new one.', 400));
   }
 
-  // 3) Check attempts (max 3)
+  // 3) Check attempt count (max 3)
   if (user.otpAttempts >= 3) {
-    // Clear OTP after too many attempts
     user.otpCode = undefined;
     user.otpExpires = undefined;
     user.otpAttempts = 0;
@@ -617,17 +542,14 @@ exports.verifyResetOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid OTP', 401));
   }
 
-  // 5) OTP is valid - generate password reset token
   const resetToken = user.createPasswordResetToken();
   
-  // Clear OTP fields
   user.otpCode = undefined;
   user.otpExpires = undefined;
   user.otpAttempts = 0;
   
   await user.save({ validateBeforeSave: false });
 
-  // 6) Return reset token to frontend
   res.status(200).json({
     status: 'success',
     message: 'OTP verified successfully',
@@ -636,7 +558,6 @@ exports.verifyResetOTP = catchAsync(async (req, res, next) => {
   });
 });
 
-// Verify OTP for 2FA login
 exports.verifyLoginOTP = catchAsync(async (req, res, next) => {
   const { email, otpCode } = req.body;
 
@@ -644,7 +565,7 @@ exports.verifyLoginOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('Please provide email and OTP code', 400));
   }
 
-  // 1) Find user by email (check Employee or Client)
+  // 1) Find user by email (Employee or Client)
   let user = await Employee.findOne({ email }).select('+otpCode');
   
   if (!user) {
@@ -661,7 +582,6 @@ exports.verifyLoginOTP = catchAsync(async (req, res, next) => {
   }
 
   if (OTPService.isExpired(user.otpExpires)) {
-    // Clear expired OTP
     user.otpCode = undefined;
     user.otpExpires = undefined;
     user.otpAttempts = 0;
@@ -670,9 +590,8 @@ exports.verifyLoginOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('OTP has expired. Please login again.', 400));
   }
 
-  // 3) Check attempts (max 3)
+  // 3) Check attempt count (max 3)
   if (user.otpAttempts >= 3) {
-    // Clear OTP after too many attempts
     user.otpCode = undefined;
     user.otpExpires = undefined;
     user.otpAttempts = 0;
@@ -707,12 +626,11 @@ exports.verifyLoginOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid OTP', 401));
   }
 
-  // 5) OTP is valid - clear OTP and log user in
+  // 5) OTP valid — clear fields and log user in
   user.otpCode = undefined;
   user.otpExpires = undefined;
   user.otpAttempts = 0;
   await user.save({ validateBeforeSave: false });
 
-  // 6) Log the user in, send JWT
   createSendToken(user, 200, res);
 });

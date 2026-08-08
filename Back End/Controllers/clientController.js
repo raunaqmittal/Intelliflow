@@ -2,22 +2,7 @@ const Client = require('../models/clientModel');
 const catchAsync = require('../Utilities/catchAsync');
 const AppError = require('../Utilities/appError');
 const OTPService = require('../Utilities/otp');
-
-// Normalize phone number to ensure +91 prefix
-const normalizePhone = (phone) => {
-  if (!phone) return undefined; // Return undefined instead of empty value
-  // Remove all non-digits
-  let digits = phone.replace(/\D/g, '');
-  if (!digits) return undefined; // If no digits after cleaning, return undefined
-  
-  // If doesn't start with 91, add it
-  if (!digits.startsWith('91')) {
-    digits = '91' + digits;
-  }
-  
-  // Always return with + prefix for consistency
-  return `+${digits}`;
-};
+const { normalizePhone } = require('../Utilities/controllerUtils');
 
 const filterObj = (obj, ...allowedFields) => {
   const newObj = {};
@@ -96,18 +81,15 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   
   const filteredBody = filterObj(req.body, 'client_name', 'phone', 'twoFactorEnabled', 'twoFactorMethod');
   
-  // Normalize phone number if provided
   if (filteredBody.phone) {
     filteredBody.phone = normalizePhone(filteredBody.phone);
   }
   
-  // If phone is being updated, reset phoneVerified and disable 2FA
   if (filteredBody.phone) {
     const client = await Client.findById(req.user.id);
     if (client.phone !== filteredBody.phone) {
       filteredBody.phoneVerified = false;
       filteredBody.twoFactorEnabled = false; // Disable 2FA until new number is verified
-      // Clear any existing OTP data
       filteredBody.otpCode = undefined;
       filteredBody.otpExpires = undefined;
       filteredBody.otpAttempts = 0;
@@ -116,29 +98,24 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     }
   }
   
-  // Validate 2FA requirements
   if (req.body.twoFactorEnabled === true) {
     const client = await Client.findById(req.user.id);
     const twoFactorMethod = req.body.twoFactorMethod || client.twoFactorMethod;
     
     if (twoFactorMethod === 'sms') {
-      // Check if phone exists (either in DB or being updated)
       const phoneToUse = filteredBody.phone || client.phone;
       if (!phoneToUse) {
         return next(new AppError('Please add a phone number before enabling SMS 2FA', 400));
       }
       
-      // If phone is being changed, require verification of new number
       if (filteredBody.phone && filteredBody.phone !== client.phone) {
         return next(new AppError('Please verify your new phone number before enabling SMS 2FA', 400));
       }
       
-      // Require phone verification for SMS 2FA
       if (!client.phoneVerified) {
         return next(new AppError('Please verify your phone number before enabling SMS 2FA', 400));
       }
     } else if (twoFactorMethod === 'email') {
-      // Require email verification for email 2FA
       if (!client.emailVerified) {
         return next(new AppError('Please verify your email before enabling email 2FA', 400));
       }
@@ -164,15 +141,12 @@ exports.sendPhoneVerificationOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('Please add a phone number first', 400));
   }
 
-  // Rate limiting check
   if (!OTPService.canSendOTP(client.otpLastSent)) {
     return next(new AppError('Please wait before requesting another OTP', 429));
   }
 
-  // Generate 6-digit OTP
   const otp = OTPService.generateOTP();
   
-  // Store hashed OTP in database along with the phone number it was sent to
   client.otpCode = OTPService.hashOTP(otp);
   client.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
   client.otpAttempts = 0;
@@ -180,7 +154,6 @@ exports.sendPhoneVerificationOTP = catchAsync(async (req, res, next) => {
   client.otpPhone = client.phone; // Store phone number OTP was sent to
   await client.save({ validateBeforeSave: false });
 
-  // Send OTP via SMS
   if (process.env.NODE_ENV === 'development') {
     console.log(`📱 Sending phone verification OTP to ${client.phone}...`);
   }
@@ -219,9 +192,7 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
 
   const client = await Client.findById(req.user.id).select('+otpCode +otpPhone');
 
-  // Check if phone number has changed since OTP was sent
   if (client.otpPhone && client.phone !== client.otpPhone) {
-    // Phone changed - invalidate old OTP
     client.otpCode = undefined;
     client.otpExpires = undefined;
     client.otpAttempts = 0;
@@ -230,7 +201,6 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
     return next(new AppError('Phone number has changed. Please request a new verification code for your current number.', 400));
   }
 
-  // Verify OTP
   const isValid = OTPService.verifyOTP(
     otp,
     client.otpCode,
@@ -258,7 +228,6 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
     }
   }
 
-  // OTP is valid - mark phone as verified
   client.phoneVerified = true;
   client.otpCode = undefined;
   client.otpExpires = undefined;
@@ -271,7 +240,6 @@ exports.verifyPhone = catchAsync(async (req, res, next) => {
   });
 });
 
-// Email Verification OTP
 exports.sendEmailVerificationOTP = catchAsync(async (req, res, next) => {
   const client = await Client.findById(req.user.id);
   
@@ -279,22 +247,18 @@ exports.sendEmailVerificationOTP = catchAsync(async (req, res, next) => {
     return next(new AppError('No email address found', 400));
   }
 
-  // Rate limiting check
   if (!OTPService.canSendOTP(client.otpLastSent)) {
     return next(new AppError('Please wait before requesting another OTP', 429));
   }
 
-  // Generate 6-digit OTP
   const otp = OTPService.generateOTP();
   
-  // Store hashed OTP in database
   client.otpCode = OTPService.hashOTP(otp);
   client.otpExpires = Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || 5) * 60 * 1000);
   client.otpAttempts = 0;
   client.otpLastSent = Date.now();
   await client.save({ validateBeforeSave: false });
 
-  // Send OTP via Email
   if (process.env.NODE_ENV === 'development') {
     console.log(`📧 Sending email verification OTP to ${client.contact_email}...`);
   }
@@ -328,7 +292,6 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
 
   const client = await Client.findById(req.user.id).select('+otpCode');
 
-  // Debug logging
   if (process.env.NODE_ENV === 'development') {
     console.log('📧 Email Verification Debug:');
     console.log('Provided OTP:', otp);
@@ -337,7 +300,6 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
     console.log('OTP Attempts:', client.otpAttempts);
   }
 
-  // Verify OTP
   const isValid = OTPService.verifyOTP(
     otp,
     client.otpCode,
@@ -369,7 +331,6 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
     }
   }
 
-  // OTP is valid - mark email as verified
   client.emailVerified = true;
   client.otpCode = undefined;
   client.otpExpires = undefined;
@@ -403,27 +364,22 @@ exports.deleteMe = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get dashboard data for logged-in client
 exports.getMyDashboard = catchAsync(async (req, res, next) => {
   const Project = require('../models/projectModel');
   const Request = require('../models/requestModel');
 
-  // Get client's projects
   const projects = await Project.find({ client: req.user.id });
   
-  // Count projects by status
   const totalProjects = projects.length;
   const activeProjects = projects.filter(p => p.status === 'In Progress').length;
   const completedProjects = projects.filter(p => p.status === 'Completed').length;
   const pendingProjects = projects.filter(p => p.status === 'Pending').length;
 
-  // Get recent projects (last 5)
   const recentProjects = await Project.find({ client: req.user.id })
     .sort('-createdAt')
     .limit(5)
     .select('project_title status category createdAt');
 
-  // Get client's requests
   const requests = await Request.find({ client: req.user.id });
   const pendingRequests = requests.filter(r => r.status === 'pending' || r.status === 'under_review').length;
 

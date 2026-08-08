@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const Employee = require('./models/employeeModel');
-const Request = require('./models/requestModel');
+const Employee = require('../models/employeeModel');
+const Request = require('../models/requestModel');
 
-dotenv.config({ path: './config.env' });
+dotenv.config({ path: '../config.env' });
 
 // Connect to MongoDB
 const DB = process.env.DATABASE.replace(

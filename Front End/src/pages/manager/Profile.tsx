@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
 import api from "@/lib/api";
+import { handlePhoneInput, formatPhoneDisplay } from "@/utils/phoneUtils";
 
 export default function ManagerProfile() {
         const { employee, updateEmployee } = useUser();
@@ -29,34 +30,7 @@ export default function ManagerProfile() {
         const { toast } = useToast();
 
         const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            // Remove all non-digits (including if user types +91 manually)
-            let value = e.target.value.replace(/\D/g, '')
-            
-            // Remove 91 prefix if user typed it manually (we'll add it back)
-            if (value.startsWith('91')) {
-                value = value.slice(2)
-            }
-            
-            // Limit to exactly 10 digits for Indian mobile number
-            value = value.slice(0, 10)
-            
-            // Store with 91 prefix only if user has entered some digits
-            const phoneValue = value ? '91' + value : ''
-            setEditForm({ ...editForm, phone: phoneValue })
-        }
-
-        const formatPhoneDisplay = (phone: string) => {
-            if (!phone) return ''
-            const digits = phone.replace(/\D/g, '')
-            
-            // Remove 91 prefix for display formatting
-            const number = digits.startsWith('91') ? digits.slice(2) : digits
-            
-            if (number) {
-                // Format as +91 XXXXX XXXXX
-                return `+91 ${number.slice(0, 5)} ${number.slice(5)}`
-            }
-            return ''
+            setEditForm({ ...editForm, phone: handlePhoneInput(e.target.value) })
         }
 
         useEffect(() => {

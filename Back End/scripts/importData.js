@@ -3,17 +3,16 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 
 // Load models
-const Client = require('./models/clientModel');
-const Employee = require('./models/employeeModel');
-const Project = require('./models/projectModel');
-const Task = require('./models/taskModel');
+const Client = require('../models/clientModel');
+const Employee = require('../models/employeeModel');
+const Project = require('../models/projectModel');
+const Task = require('../models/taskModel');
 
 // Load environment variables
-dotenv.config({ path: './config.env' });
+dotenv.config({ path: '../config.env' });
 
 // Connect to database
 mongoose.connect(process.env.DATABASE, {
-  useNewUrlParser: true,
 }).then(() => {
   console.log('DB connection successful');
 }).catch(err => {
@@ -21,10 +20,10 @@ mongoose.connect(process.env.DATABASE, {
 });
 
 // Import data files
-const clients = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/data/Clients.json`, 'utf-8'));
-const employees = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/data/Employee.json`, 'utf-8'));
-const projects = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/data/Projects.json`, 'utf-8'));
-const tasks = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/data/Tasks.json`, 'utf-8'));
+const clients = JSON.parse(fs.readFileSync(`${__dirname}/../../Data/JSON data/Clients.json`, 'utf-8'));
+const employees = JSON.parse(fs.readFileSync(`${__dirname}/../../Data/JSON data/Employee.json`, 'utf-8'));
+const projects = JSON.parse(fs.readFileSync(`${__dirname}/../../Data/JSON data/Projects.json`, 'utf-8'));
+const tasks = JSON.parse(fs.readFileSync(`${__dirname}/../../Data/JSON data/Tasks.json`, 'utf-8'));
 
 // Import function
 async function importData() {

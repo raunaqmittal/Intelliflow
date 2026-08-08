@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import api from '@/lib/api'
+import { handlePhoneInput, formatPhoneDisplay, isValidPhone } from '@/utils/phoneUtils'
 
 export default function AddClient() {
   const { toast } = useToast()
@@ -39,34 +40,7 @@ export default function AddClient() {
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Remove all non-digits (including if user types +91 manually)
-    let value = e.target.value.replace(/\D/g, '')
-    
-    // Remove 91 prefix if user typed it manually (we'll add it back)
-    if (value.startsWith('91')) {
-      value = value.slice(2)
-    }
-    
-    // Limit to exactly 10 digits for Indian mobile number
-    value = value.slice(0, 10)
-    
-    // Store with 91 prefix only if user has entered some digits
-    const phoneValue = value ? '91' + value : ''
-    setForm({ ...form, phone: phoneValue })
-  }
-
-  const formatPhoneDisplay = (phone: string) => {
-    if (!phone) return ''
-    const digits = phone.replace(/\D/g, '')
-    
-    // Remove 91 prefix for display formatting
-    const number = digits.startsWith('91') ? digits.slice(2) : digits
-    
-    if (number) {
-      // Format as +91 XXXXX XXXXX
-      return `+91 ${number.slice(0, 5)} ${number.slice(5)}`
-    }
-    return ''
+    setForm({ ...form, phone: handlePhoneInput(e.target.value) })
   }
 
   const submit = async () => {
@@ -78,16 +52,8 @@ export default function AddClient() {
       toast({ title: 'Missing fields', description: 'All fields are required', variant: 'destructive' })
       return
     }
-    // Validate phone number is exactly 12 digits (91 + 10 digits)
-    const phoneDigits = form.phone.replace(/\D/g, '')
-    if (phoneDigits.length !== 12 || !phoneDigits.startsWith('91')) {
-      toast({ title: 'Invalid phone number', description: 'Please enter a valid 10-digit Indian mobile number', variant: 'destructive' })
-      return
-    }
-    // Validate first digit after country code is 6-9
-    const actualNumber = phoneDigits.slice(2) // Remove 91 prefix
-    if (!/^[6-9]/.test(actualNumber)) {
-      toast({ title: 'Invalid phone number', description: 'Indian mobile numbers must start with 6, 7, 8, or 9', variant: 'destructive' })
+    if (!isValidPhone(form.phone)) {
+      toast({ title: 'Invalid phone number', description: 'Please enter a valid phone number with country code (e.g. +91 98765 43210)', variant: 'destructive' })
       return
     }
     if (form.password !== form.passwordConfirm) {

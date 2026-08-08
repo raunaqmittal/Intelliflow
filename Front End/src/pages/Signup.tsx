@@ -11,6 +11,7 @@ import api from '@/lib/api'
 import { loadEmployees } from '@/utils/dataParser'
 import { Header } from '@/components/landing/Header'
 import { Footer } from '@/components/landing/Footer'
+import { handlePhoneInput, formatPhoneDisplay, isValidPhone } from '@/utils/phoneUtils'
 
 type SignupType = 'employee' | 'client'
 
@@ -116,28 +117,12 @@ export default function Signup() {
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, formType: 'employee' | 'client') => {
-    let value = e.target.value.replace(/\D/g, '')
-    if (value.startsWith('91')) {
-      value = value.slice(2)
-    }
-    value = value.slice(0, 10)
-    const phoneValue = value ? '91' + value : ''
-    
+    const phoneValue = handlePhoneInput(e.target.value)
     if (formType === 'employee') {
       setEmployeeForm({ ...employeeForm, phone: phoneValue })
     } else {
       setClientForm({ ...clientForm, phone: phoneValue })
     }
-  }
-
-  const formatPhoneDisplay = (phone: string) => {
-    if (!phone) return ''
-    const digits = phone.replace(/\D/g, '')
-    const number = digits.startsWith('91') ? digits.slice(2) : digits
-    if (number) {
-      return `+91 ${number.slice(0, 5)} ${number.slice(5)}`
-    }
-    return ''
   }
 
   const submitEmployee = async () => {
@@ -153,14 +138,8 @@ export default function Signup() {
       toast({ title: 'Missing department', description: 'Please select a department', variant: 'destructive' })
       return
     }
-    const phoneDigits = employeeForm.phone.replace(/\D/g, '')
-    if (phoneDigits.length !== 12 || !phoneDigits.startsWith('91')) {
-      toast({ title: 'Invalid phone number', description: 'Please enter a valid 10-digit Indian mobile number', variant: 'destructive' })
-      return
-    }
-    const actualNumber = phoneDigits.slice(2)
-    if (!/^[6-9]/.test(actualNumber)) {
-      toast({ title: 'Invalid phone number', description: 'Indian mobile numbers must start with 6, 7, 8, or 9', variant: 'destructive' })
+    if (!isValidPhone(employeeForm.phone)) {
+      toast({ title: 'Invalid phone number', description: 'Please enter a valid phone number with country code (e.g. +91 98765 43210)', variant: 'destructive' })
       return
     }
     if (employeeForm.password !== employeeForm.passwordConfirm) {
@@ -223,14 +202,8 @@ export default function Signup() {
       toast({ title: 'Missing fields', description: 'All fields are required', variant: 'destructive' })
       return
     }
-    const phoneDigits = clientForm.phone.replace(/\D/g, '')
-    if (phoneDigits.length !== 12 || !phoneDigits.startsWith('91')) {
-      toast({ title: 'Invalid phone number', description: 'Please enter a valid 10-digit Indian mobile number', variant: 'destructive' })
-      return
-    }
-    const actualNumber = phoneDigits.slice(2)
-    if (!/^[6-9]/.test(actualNumber)) {
-      toast({ title: 'Invalid phone number', description: 'Indian mobile numbers must start with 6, 7, 8, or 9', variant: 'destructive' })
+    if (!isValidPhone(clientForm.phone)) {
+      toast({ title: 'Invalid phone number', description: 'Please enter a valid phone number with country code (e.g. +91 98765 43210)', variant: 'destructive' })
       return
     }
     if (clientForm.password !== clientForm.passwordConfirm) {

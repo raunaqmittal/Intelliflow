@@ -19,7 +19,10 @@ const INTERNAL_KEY = process.env.AI_AGENT_INTERNAL_KEY || '';
 // ---------------------------------------------------------------------------
 // Last-resort fallback used ONLY when the Python service is completely
 // unreachable (network error, service down, etc.).
-// This mirrors the fallback in agent.py and the original FALLBACK_WORKFLOWS.
+// This is intentionally NOT shared with workflowGenerator.js — that file
+// holds rich per-type templates (web_dev, app_dev, prototype, research)
+// used for the rule-based fallback path. This fallback is a bare-minimum
+// safety net that runs when even the rule-based path cannot be reached.
 // ---------------------------------------------------------------------------
 const LAST_RESORT_FALLBACK = {
   requestType: 'research',

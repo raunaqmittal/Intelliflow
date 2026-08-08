@@ -1,7 +1,5 @@
 const express = require('express');
 const app = express();
-const dotenv = require('dotenv');
-dotenv.config({path: './config.env'});
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -18,20 +16,29 @@ const AppError = require('./Utilities/appError');
 const globalErrorHandler = require('./Controllers/errorController');
 const cors = require('cors');
 
-// Middlewares are the functions that can modify the incoming request data before it is sent to the final handler function
-// Middlewares can also modify the outgoing response data before it is sent to the client
-// Middlewares can also terminate the request-response cycle
-// Middlewares can also call the next middleware in the stack
-
-// Trust proxy - Required for Render, Heroku, and other platforms behind reverse proxies
-// This allows rate limiting and other features to work correctly with X-Forwarded-For headers
-// Using 1 instead of true to trust only the first proxy (Render's load balancer) for security
+// Trust proxy - required for Render behind reverse proxy (allows rate limiting to use real client IP)
 app.set('trust proxy', 1);
 
 // 1) MIDDLEWARES
 
 // for setting security http headers
-app.use(helmet()); 
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      fontSrc: ["'self'", 'https:', 'data:'],
+      formAction: ["'self'"],
+      frameAncestors: ["'self'"],
+      imgSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+      scriptSrc: ["'self'"],
+      scriptSrcAttr: ["'none'"],
+      styleSrc: ["'self'", 'https:', "'unsafe-inline'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+}));
 
 // Middleware to parse JSON bodies
 app.use(cors({
@@ -40,7 +47,6 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10kb' })); // Body limit is 10kb
 
-// Enable CORS for all routes
 // Normalize duplicate slashes in request URL to avoid routing mismatches like /api/v1//tasks/:id
 app.use((req, res, next) => {
   if (req.url.includes('//')) {
@@ -58,12 +64,9 @@ app.use(xss());
 // Preventing parameter pollution
 app.use(hpp({
   whitelist: [
-    'duration',
-    'ratingsQuantity',
-    'ratingsAverage',
-    'maxGroupSize',
-    'difficulty',
-    'price'
+    'status',
+    'department',
+    'availability'
   ]
 }));
 
@@ -111,8 +114,10 @@ app.use('/api/v1/clients/forgotPassword', authLimiter);
 
 // 2) Setting up the routes
 
-// Diagnostic endpoint (temporary - for debugging email issues)
-app.use('/api/diagnostic', diagnosticRouter);
+// Diagnostic endpoint — restricted to development only (exposes SMTP config status)
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/diagnostic', diagnosticRouter);
+}
 
 app.use('/api/v1/employees', employeeRouter);
 app.use('/api/v1/clients', clientRouter);

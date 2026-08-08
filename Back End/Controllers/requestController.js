@@ -7,37 +7,13 @@ const AppError = require('../Utilities/appError');
 const { generateWorkflowWithSuggestions } = require('../Utilities/workflowGenerator');
 const { suggestEmployeesForTask } = require('../Utilities/employeeSuggestion');
 const { runAIWorkflowAgent } = require('../Utilities/aiWorkflowAgent');
+const { normalizeDept, expandDeptAliases, expandDeptList } = require('../Utilities/controllerUtils');
 
-// Simple department normalizer mirroring front-end logic (strict canonical form)
-const normalizeDept = d => (d || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-// Alias map to align with front-end (Development ≡ Engineering, QA ≡ Testing, etc.)
-const ALIASES = {
-  qa: ['qualityassurance', 'testing', 'qatesting', 'qatest'],
-  qualityassurance: ['qa', 'testing'],
-  testing: ['qa', 'qualityassurance'],
-  research: ['rnd', 'r&d', 'researchanddevelopment', 'randd'],
-  development: ['dev', 'softwaredevelopment', 'engineering'],
-  engineering: ['development', 'dev', 'softwaredevelopment'],
-  design: ['uiux', 'ui', 'ux', 'uiandux'],
-};
-const expandAliases = (term) => {
-  const n = normalizeDept(term);
-  const set = new Set([n]);
-  for (const [k, vals] of Object.entries(ALIASES)) {
-    if (n === k || vals.includes(n)) {
-      set.add(k);
-      vals.forEach(v => set.add(v));
-    }
-  }
-  return Array.from(set);
-};
-const expandList = (list) => (Array.isArray(list) ? list : [])
-  .flatMap(expandAliases)
-  .map(normalizeDept);
+// Keep local alias: expandAliases -> expandDeptAliases, expandList -> expandDeptList
+const expandAliases = expandDeptAliases;
+const expandList = expandDeptList;
 
-// Get client's own requests (client-only endpoint)
 exports.getMyRequests = catchAsync(async (req, res, next) => {
-  // Ensure user is a client
   if (req.user.role && req.user.role !== 'client') {
     return next(new AppError('This endpoint is for clients only', 403));
   }
@@ -55,22 +31,18 @@ exports.getMyRequests = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get all requests (filtered by role)
 exports.getAllRequests = catchAsync(async (req, res, next) => {
   let filter = {};
   
-  // If user has no role or is a client, only show their requests
   if (!req.user.role || req.user.role === 'client') {
     filter.client = req.user.id;
   }
-  // Managers can see all requests
 
   const requests = await Request.find(filter)
     .populate('client', 'client_name contact_email')
     .populate('convertedToProject', 'project_name')
     .sort('-createdAt');
 
-  // Hide workflow from clients
   const isClient = !req.user.role || req.user.role === 'client';
   const sanitizedRequests = isClient 
     ? requests.map(req => {
@@ -89,7 +61,6 @@ exports.getAllRequests = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get single request
 exports.getRequest = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id)
     .populate('client', 'client_name contact_email')
@@ -111,7 +82,6 @@ exports.getRequest = catchAsync(async (req, res, next) => {
     return next(new AppError('No request found with that ID', 404));
   }
 
-  // Populate task assignments separately
   if (request.taskAssignments && request.taskAssignments.size > 0) {
     await request.populate({
       path: 'taskAssignments.$*',
@@ -119,12 +89,10 @@ exports.getRequest = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Check authorization: only the request owner or privileged roles can access
   if ((req.user.role === 'client' || !req.user.role) && request.client._id.toString() !== req.user.id) {
     return next(new AppError('You do not have permission to access this request', 403));
   }
 
-  // Hide workflow from clients
   const isClient = !req.user.role || req.user.role === 'client';
   let sanitizedRequest;
   if (isClient) {
@@ -133,7 +101,6 @@ exports.getRequest = catchAsync(async (req, res, next) => {
     delete reqObj.taskAssignments;
     sanitizedRequest = reqObj;
   } else {
-    // Merge populated task assignments into taskBreakdown for display
     const reqObj = request.toObject();
     const populatedAssignments = {};
     if (request.taskAssignments && request.taskAssignments.size > 0) {
@@ -164,12 +131,10 @@ exports.getRequest = catchAsync(async (req, res, next) => {
   });
 });
 
-// Create new request (client only)
 exports.createRequest = catchAsync(async (req, res, next) => {
 
   const newRequest = await Request.create({
     client: req.user.id,
-    // requestType is NOT set here — AI classifies it during generateWorkflow
     title: req.body.title,
     description: req.body.description,
     requirements: req.body.requirements
@@ -183,7 +148,6 @@ exports.createRequest = catchAsync(async (req, res, next) => {
   });
 });
 
-// Update request (before workflow generation)
 exports.updateRequest = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id);
 
@@ -191,12 +155,10 @@ exports.updateRequest = catchAsync(async (req, res, next) => {
     return next(new AppError('No request found with that ID', 404));
   }
 
-  // Check authorization
   if ((req.user.role === 'client' || !req.user.role) && request.client.toString() !== req.user.id) {
     return next(new AppError('You do not have permission to update this request', 403));
   }
 
-  // Only allow updates if workflow hasn't been generated yet
   if (request.status !== 'submitted') {
     return next(new AppError('Cannot update request after workflow has been generated', 400));
   }
@@ -223,7 +185,6 @@ exports.updateRequest = catchAsync(async (req, res, next) => {
   });
 });
 
-// Delete request
 exports.deleteRequest = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id);
 
@@ -231,12 +192,10 @@ exports.deleteRequest = catchAsync(async (req, res, next) => {
     return next(new AppError('No request found with that ID', 404));
   }
 
-  // Check authorization
   if ((req.user.role === 'client' || !req.user.role) && request.client.toString() !== req.user.id) {
     return next(new AppError('You do not have permission to delete this request', 403));
   }
 
-  // Cannot delete if already converted to project
   if (request.status === 'converted') {
     return next(new AppError('Cannot delete request that has been converted to a project', 400));
   }
@@ -249,7 +208,6 @@ exports.deleteRequest = catchAsync(async (req, res, next) => {
   });
 });
 
-// Generate workflow with AI agent + employee suggestions
 exports.generateWorkflow = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id);
 
@@ -261,14 +219,12 @@ exports.generateWorkflow = catchAsync(async (req, res, next) => {
     return next(new AppError('Workflow has already been generated for this request', 400));
   }
 
-  // ── Run AI Agent ─────────────────────────────────────────────────────────
   const agentResult = await runAIWorkflowAgent({
     title: request.title,
     description: request.description,
     requirements: request.requirements
   });
 
-  // ── Handle Out-of-Scope ──────────────────────────────────────────────────
   if (agentResult.isOutOfScope) {
     request.status = 'out_of_scope';
     request.requestType = 'out_of_scope';
@@ -287,7 +243,6 @@ exports.generateWorkflow = catchAsync(async (req, res, next) => {
     });
   }
 
-  // ── Handle In-Scope: save AI classification ──────────────────────────────
   request.requestType = agentResult.requestType;
   request.aiClassification = {
     detectedType: agentResult.requestType,
@@ -296,7 +251,6 @@ exports.generateWorkflow = catchAsync(async (req, res, next) => {
     classifiedAt: new Date()
   };
 
-  // ── Add employee suggestions to each AI-generated task ──────────────────
   const taskBreakdownWithSuggestions = await Promise.all(
     agentResult.workflow.taskBreakdown.map(async (task) => ({
       ...task,
@@ -309,7 +263,6 @@ exports.generateWorkflow = catchAsync(async (req, res, next) => {
     taskBreakdown: taskBreakdownWithSuggestions
   };
 
-  // ── Derive required departments from AI-generated task teams ─────────────
   const deptSet = new Set(
     taskBreakdownWithSuggestions
       .map(t => (t && t.team ? t.team : null))
@@ -325,7 +278,6 @@ exports.generateWorkflow = catchAsync(async (req, res, next) => {
   request.status = 'workflow_generated';
   await request.save();
 
-  // ── Populate employee details for response ───────────────────────────────
   await request.populate({
     path: 'generatedWorkflow.taskBreakdown.suggestedEmployees.employee',
     select: 'name email role department skills availability'
@@ -337,7 +289,6 @@ exports.generateWorkflow = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get workflow
 exports.getWorkflow = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id)
     .populate({
@@ -353,7 +304,6 @@ exports.getWorkflow = catchAsync(async (req, res, next) => {
     return next(new AppError('Workflow has not been generated for this request yet', 400));
   }
 
-  // Populate task assignments
   if (request.taskAssignments && request.taskAssignments.size > 0) {
     await request.populate({
       path: 'taskAssignments.$*',
@@ -361,7 +311,6 @@ exports.getWorkflow = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Merge assignments into workflow for response
   const workflow = request.generatedWorkflow.toObject();
   if (Array.isArray(workflow.taskBreakdown)) {
     workflow.taskBreakdown = workflow.taskBreakdown.map(task => {
@@ -384,7 +333,6 @@ exports.getWorkflow = catchAsync(async (req, res, next) => {
   });
 });
 
-// Refresh employee suggestions (manager only)
 exports.refreshEmployeeSuggestions = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id);
 
@@ -396,7 +344,6 @@ exports.refreshEmployeeSuggestions = catchAsync(async (req, res, next) => {
     return next(new AppError('No workflow to refresh suggestions for', 400));
   }
 
-  // Refresh suggestions for all tasks
   const updatedTaskBreakdown = await Promise.all(
     request.generatedWorkflow.taskBreakdown.map(async (task) => {
       const suggestedEmployees = await suggestEmployeesForTask(task);
@@ -423,7 +370,6 @@ exports.refreshEmployeeSuggestions = catchAsync(async (req, res, next) => {
   });
 });
 
-// Modify workflow (manager can change assignments)
 exports.modifyWorkflow = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id);
 
@@ -435,17 +381,13 @@ exports.modifyWorkflow = catchAsync(async (req, res, next) => {
     return next(new AppError('No workflow to modify', 400));
   }
 
-  // Update task assignments or other workflow details
   if (req.body.taskBreakdown) {
-    // Merge incoming updates with existing tasks to preserve all fields
     request.generatedWorkflow.taskBreakdown = request.generatedWorkflow.taskBreakdown.map(existingTask => {
       const update = req.body.taskBreakdown.find(t => t._id && t._id.toString() === existingTask._id.toString());
       if (update) {
-        // Merge update fields with existing task, preserving all original fields
         return {
           ...existingTask.toObject(),
           ...update,
-          // Ensure we preserve critical fields if not explicitly updated
           taskName: update.taskName || existingTask.taskName,
           team: update.team || existingTask.team,
           estimatedHours: update.estimatedHours || existingTask.estimatedHours,
@@ -479,7 +421,6 @@ exports.modifyWorkflow = catchAsync(async (req, res, next) => {
   });
 });
 
-// Assign employees to tasks (manager only, scoped to their departments)
 exports.assignEmployees = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id);
 
@@ -491,12 +432,10 @@ exports.assignEmployees = catchAsync(async (req, res, next) => {
     return next(new AppError('No workflow to assign employees to', 400));
   }
 
-  // req.body.assignments should be: { "taskId": ["employeeId1", "employeeId2"], ... }
   if (!req.body.assignments || typeof req.body.assignments !== 'object') {
     return next(new AppError('Please provide task assignments in the format: { "taskId": ["employeeId1", ...] }', 400));
   }
 
-  // Validate that all task IDs exist in the workflow
   const validTaskIds = request.generatedWorkflow.taskBreakdown.map(t => t._id.toString());
   const invalidTaskIds = Object.keys(req.body.assignments).filter(taskId => !validTaskIds.includes(taskId));
   
@@ -504,7 +443,6 @@ exports.assignEmployees = catchAsync(async (req, res, next) => {
     return next(new AppError(`Invalid task IDs: ${invalidTaskIds.join(', ')}`, 400));
   }
 
-  // Enforce department scope: manager can only assign tasks for their managed departments
   const managerDeptsRaw = Array.isArray(req.user.approvesDepartments) ? req.user.approvesDepartments : [];
   const managerDepts = expandList(managerDeptsRaw);
   const taskMap = new Map(request.generatedWorkflow.taskBreakdown.map(t => [t._id.toString(), t.team]));
@@ -519,7 +457,6 @@ exports.assignEmployees = catchAsync(async (req, res, next) => {
   return next(new AppError(`You are not authorized to assign tasks for: ${teams.join(', ')}. You can only assign for: ${(managerDeptsRaw || []).join(', ')}`, 403));
   }
 
-  // Update task assignments by merging with existing entries instead of overwriting all
   if (!request.taskAssignments || !(request.taskAssignments instanceof Map)) {
     request.taskAssignments = new Map();
   }
@@ -530,14 +467,12 @@ exports.assignEmployees = catchAsync(async (req, res, next) => {
   request.status = 'under_review';
   await request.save();
 
-  // Populate all data for response
   await request.populate('client', 'client_name contact_email');
   await request.populate({
     path: 'generatedWorkflow.taskBreakdown.suggestedEmployees.employee',
     select: 'name email role department skills availability'
   });
   
-  // Populate task assignments
   if (request.taskAssignments && request.taskAssignments.size > 0) {
     await request.populate({
       path: 'taskAssignments.$*',
@@ -545,7 +480,6 @@ exports.assignEmployees = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Merge assignments into taskBreakdown for response, using populated values
   const reqObj = request.toObject();
   const populatedAssignments = {};
   if (request.taskAssignments && request.taskAssignments.size > 0) {
@@ -574,7 +508,6 @@ exports.assignEmployees = catchAsync(async (req, res, next) => {
   });
 });
 
-// Approve request (manager only)
 exports.approveRequest = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id);
 
@@ -586,7 +519,6 @@ exports.approveRequest = catchAsync(async (req, res, next) => {
     return next(new AppError('Cannot approve request without generated workflow', 400));
   }
 
-  // Only managers of involved departments can finalize approval
   const mgrDeptsRaw = Array.isArray(req.user.approvesDepartments) ? req.user.approvesDepartments : [];
   const mgrDepts = expandList(mgrDeptsRaw);
   const involvedDeptsRaw = Array.isArray(request.requiredDepartments) ? request.requiredDepartments : [];
@@ -603,7 +535,6 @@ exports.approveRequest = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Verify all department approvals completed (if any departments required)
   if (Array.isArray(request.requiredDepartments) && request.requiredDepartments.length > 0) {
     const pending = (Array.isArray(request.approvalsByDepartment) ? request.approvalsByDepartment : [])
       .filter(entry => !entry.approved)
@@ -613,7 +544,6 @@ exports.approveRequest = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Check if all tasks have assigned employees
   const unassignedTasks = request.generatedWorkflow.taskBreakdown.filter(task => {
     const taskId = task._id.toString();
     const assignments = request.taskAssignments && request.taskAssignments.get(taskId);
@@ -633,11 +563,8 @@ exports.approveRequest = catchAsync(async (req, res, next) => {
   request.reviewNotes = req.body.reviewNotes || request.reviewNotes;
   await request.save();
 
-  // --- Automatically convert to project after approval ---
-  // Populate client for project creation
   await request.populate('client');
 
-  // Create project
   const newProject = await Project.create({
     project_id: Date.now(),
     project_title: request.title,
@@ -646,14 +573,11 @@ exports.approveRequest = catchAsync(async (req, res, next) => {
     category: request.requestType === 'web_dev' ? 'Web Dev' : 
               request.requestType === 'app_dev' ? 'App Dev' :
               request.requestType === 'prototype' ? 'Prototyping' : 'Research',
-    // Mark as Approved on creation; frontend maps Approved -> In Progress for display
     status: 'Approved',
     framework: 'Agile',
     requirements: request.requirements ? request.requirements.join(', ') : ''
   });
 
-  // Create tasks from workflow
-  // Stabilize task IDs so dependencies can reference them deterministically
   const baseTaskId = Date.now();
   const tasks = await Promise.all(
     request.generatedWorkflow.taskBreakdown.map(async (task, index) => {
@@ -662,7 +586,6 @@ exports.approveRequest = catchAsync(async (req, res, next) => {
         ? request.taskAssignments.get(workflowTaskId)
         : [];
 
-      // Resolve all assigned employees to their numeric employee_id values
       let assignedToNumbers = [];
       if (Array.isArray(assignedList) && assignedList.length > 0) {
         const ids = assignedList.map(a => (a && a._id) ? a._id : a);
@@ -687,22 +610,18 @@ exports.approveRequest = catchAsync(async (req, res, next) => {
         sprint_number: sprintNumber,
         status: 'Pending',
         priority: index === 0 ? 'high' : 'medium',
-        // estimated_hours not in schema; omit to avoid validation issues
         dependencies: dependencyId ? [dependencyId] : []
       });
     })
   );
 
-  // Calculate total sprints from created tasks
   const sprintNumbers = tasks.map(t => t.sprint_number || 1);
   const totalSprints = Math.max(...sprintNumbers);
   
-  // Update project with sprint information
   newProject.totalSprints = totalSprints;
   newProject.activeSprintNumber = 1;
   await newProject.save();
 
-  // Update request with project reference
   request.convertedToProject = newProject._id;
   request.status = 'converted';
   await request.save();
@@ -716,7 +635,6 @@ exports.approveRequest = catchAsync(async (req, res, next) => {
   });
 });
 
-// Department-level approve (Managers only; must be manager of that department)
 exports.departmentApprove = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id).populate('client');
 
@@ -728,7 +646,6 @@ exports.departmentApprove = catchAsync(async (req, res, next) => {
     return next(new AppError('No workflow to approve for this request. Generate workflow first.', 400));
   }
 
-  // Ensure caller is authorized: must be an employee with role 'manager'
   const user = req.user;
   const isEmployee = !!user && (user.employee_id !== undefined && user.employee_id !== null);
   const isManager = !!user && user.role === 'manager';
@@ -736,7 +653,6 @@ exports.departmentApprove = catchAsync(async (req, res, next) => {
     return next(new AppError('You are not authorized to approve departments for this request', 403));
   }
 
-  // Managers can only approve departments they manage per approvesDepartments
   const userDeptsRaw = Array.isArray(user.approvesDepartments) ? user.approvesDepartments : [];
   const userDepts = expandList(userDeptsRaw);
   const userSet = new Set(userDepts);
@@ -745,7 +661,6 @@ exports.departmentApprove = catchAsync(async (req, res, next) => {
     .map(e => ({ ...e, _norm: normalizeDept(e.department) }));
   const pendingDepts = new Set(pendingEntries.map(e => e._norm));
 
-  // Determine target department
   let targetDept = req.body && req.body.department ? req.body.department : undefined;
   const eligiblePending = userDepts.filter(d => pendingDepts.has(d));
 
@@ -769,7 +684,6 @@ exports.departmentApprove = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Mark approved
   const targetKeys = new Set(expandAliases(targetDept));
   const idx = request.approvalsByDepartment.findIndex(e => {
     const entryKeys = new Set(expandAliases(e.department));
@@ -787,7 +701,6 @@ exports.departmentApprove = catchAsync(async (req, res, next) => {
   request.approvalsByDepartment[idx].rejectedBy = undefined;
   request.approvalsByDepartment[idx].rejectedAt = undefined;
 
-  // Move status to under_review if not already
   if (request.status === 'workflow_generated') {
     request.status = 'under_review';
   }
@@ -806,7 +719,6 @@ exports.departmentApprove = catchAsync(async (req, res, next) => {
   });
 });
 
-// Department-level reject (Managers only; must be manager of that department)
 exports.departmentReject = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id).populate('client');
 
@@ -818,7 +730,6 @@ exports.departmentReject = catchAsync(async (req, res, next) => {
     return next(new AppError('No workflow to reject for this request. Generate workflow first.', 400));
   }
 
-  // Ensure caller is authorized: must be an employee with role 'manager'
   const user = req.user;
   const isEmployee = !!user && (user.employee_id !== undefined && user.employee_id !== null);
   const isManager = !!user && user.role === 'manager';
@@ -826,7 +737,6 @@ exports.departmentReject = catchAsync(async (req, res, next) => {
     return next(new AppError('You are not authorized to reject departments for this request', 403));
   }
 
-  // Managers can only reject departments they manage per approvesDepartments
   const userDeptsRaw = Array.isArray(user.approvesDepartments) ? user.approvesDepartments : [];
   const userDepts = expandList(userDeptsRaw);
   const userSet = new Set(userDepts);
@@ -834,7 +744,6 @@ exports.departmentReject = catchAsync(async (req, res, next) => {
     .map(e => ({ ...e, _norm: normalizeDept(e.department) }));
   const allDepts = new Set(allEntries.map(e => e._norm));
 
-  // Determine target department
   let targetDept = req.body && req.body.department ? req.body.department : undefined;
   const eligibleDepts = userDepts.filter(d => allDepts.has(d));
 
@@ -858,7 +767,6 @@ exports.departmentReject = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Mark rejected
   const targetKeys = new Set(expandAliases(targetDept));
   const idx = request.approvalsByDepartment.findIndex(e => {
     const entryKeys = new Set(expandAliases(e.department));
@@ -876,7 +784,6 @@ exports.departmentReject = catchAsync(async (req, res, next) => {
   request.approvalsByDepartment[idx].approvedBy = undefined;
   request.approvalsByDepartment[idx].approvedAt = undefined;
 
-  // Move status to under_review if not already
   if (request.status === 'workflow_generated') {
     request.status = 'under_review';
   }
@@ -895,7 +802,6 @@ exports.departmentReject = catchAsync(async (req, res, next) => {
   });
 });
 
-// Reject request (manager only)
 exports.rejectRequest = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id);
 
@@ -915,7 +821,6 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
   });
 });
 
-// Convert approved request to project with tasks
 exports.convertToProject = catchAsync(async (req, res, next) => {
   const request = await Request.findById(req.params.id).populate('client');
 
@@ -931,7 +836,6 @@ exports.convertToProject = catchAsync(async (req, res, next) => {
     return next(new AppError('This request has already been converted to a project', 400));
   }
 
-  // Create project
   const newProject = await Project.create({
     project_name: request.title,
     description: request.description,
@@ -944,7 +848,6 @@ exports.convertToProject = catchAsync(async (req, res, next) => {
     estimated_duration: request.generatedWorkflow.estimatedDuration
   });
 
-  // Create tasks from workflow
   const tasks = await Promise.all(
     request.generatedWorkflow.taskBreakdown.map(async (task, index) => {
       const taskId = task._id.toString();
@@ -967,7 +870,6 @@ exports.convertToProject = catchAsync(async (req, res, next) => {
     })
   );
 
-  // Update request with project reference
   request.convertedToProject = newProject._id;
   request.status = 'converted';
   await request.save();

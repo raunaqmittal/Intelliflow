@@ -60,12 +60,10 @@ const employeeSchema = new mongoose.Schema({
     validate: {
       validator: function(v) {
         if (!v) return false; // Phone is now required
-        // Indian phone number: +91 followed by 10 digits (6-9 at start)
-        // Accepts: +919876543210 or 919876543210
-        const cleaned = v.replace(/\D/g, '');
-        return /^91[6-9]\d{9}$/.test(cleaned);
+        // E.164 standard: + followed by 1 to 15 digits
+        return /^\+[1-9]\d{1,14}$/.test(v);
       },
-      message: 'Please provide a valid Indian phone number (format: +91XXXXXXXXXX, where first digit is 6-9)'
+      message: 'Please provide a valid international phone number starting with + (e.g., +1234567890)'
     }
   },
   phoneVerified: {

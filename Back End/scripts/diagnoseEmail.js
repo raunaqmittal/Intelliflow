@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-require('dotenv').config({ path: './config.env' });
+require('dotenv').config({ path: '../config.env' });
 
 console.log('='.repeat(60));
 console.log('EMAIL DIAGNOSTIC TOOL - Intelliflow');

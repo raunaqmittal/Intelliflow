@@ -732,10 +732,10 @@ employees <-------------------------------------------------------|
 ## 17. Next Steps
 
 ### High Priority
-1. **Deploy Python service:** Push `AI Service/` to Hugging Face Spaces, set env vars, update `AI_AGENT_URL` in Render.
-2. **Set shared secret:** Change `AI_AGENT_INTERNAL_KEY` in `Back End/config.env` and `INTERNAL_API_KEY` in HF Spaces secrets to a real random value.
-3. **End-to-end test:** Submit a request from the frontend and verify AI classification + workflow generation works through the Python service.
-4. **Production hardening:** Remove `diagnosticRoutes.js`, re-enable phone uniqueness, add CSP.
+1. **Re-enable phone uniqueness constraint** after cleaning duplicate phone data in Atlas.
+2. **End-to-end test:** Submit a request from the frontend and verify AI classification + workflow generation works through the Python service.
+3. **Run backend test suite:** `node "Back End/tests/backendTesting.js"` against live server + MongoDB.
+4. **AI Service health check:** `GET /health` on Render URL.
 
 ### Medium Priority
 4. **Conversational Ops:** Chat interface for natural language project/task operations ("create project", "assign QA", "show blockers").
@@ -756,20 +756,30 @@ A second, deeper cleanup pass was executed:
 - **Phone validation**: Standardized to E.164 international format (`+<digits>`) across the entire backend. Removed India-only hardcoding.
 
 ### Shared Utility Extraction (Frontend)
-- **`Front End/src/utils/phoneUtils.ts`** (NEW) — Extracted `handlePhoneInput`, `formatPhoneDisplay`, `isValidPhone` from 6 files (`Signup.tsx`, `manager/Profile.tsx`, `employee/Profile.tsx`, `client/Profile.tsx`, `manager/AddEmployee.tsx`, `manager/AddClient.tsx`) where they were each copy-pasted.
+- **`Front End/src/utils/phoneUtils.ts`** (NEW) — Extracted `handlePhoneInput`, `formatPhoneDisplay`, `isValidPhone` from 6 files (`Signup.tsx`, `manager/Profile.tsx`, `employee/Profile.tsx`, `client/Profile.tsx`, `manager/AddClient.tsx`, `manager/AddEmployee.tsx`) where they were each copy-pasted.
 - **Phone format**: Updated from India-only (`+91` hardcoded) to international E.164.
+- **Phone submit validation**: Updated `Signup.tsx` (employee + client sections) and `manager/AddClient.tsx` to use `isValidPhone()` — previously used hardcoded India-only digit checks (`length !== 12 || startsWith('91')`) which were inconsistent with the new E.164 storage format.
+
+### Dead Code Removed
+- **`Front End/src/components/manager/ManagerLayout.tsx`** (DELETED) — Never imported in `App.tsx`; `PortalLayout` + `ManagerSidebar` serve this purpose.
+- **`Front End/src/pages/manager/AddEmployee.tsx`** (DELETED) — Never routed in `App.tsx`; `/manager/add-employee` routes to `ManageEmployees.tsx`.
 
 ### Documentation Cleanup
 - **Consolidated 5 README files into 1 root `README.md`**: Merged content from `Back End/README.md`, `AI Service/README.md`, `Front End/README.md`. Deleted all 3 sub-READMEs. Kept `Back End/scripts/README.md` as a useful script reference table.
 - Root README now covers: overview, architecture, repo structure, local setup for all 3 services, API reference, test commands, deployment guide, env var tables, security section, roadmap.
+- **`Docs/env-vars.md`** (NEW) — Full environment variable reference table for all 3 services.
+- **`Docs/dependency-map.md`** (NEW) — System dependency map: Frontend→API, Backend→MongoDB, Backend→Python AI, Auth flow, files that must not change.
 
 ### Comment Quality
-- Removed verbose boilerplate comments in `app.js` (4-line middleware textbook explanation).
+- Removed verbose boilerplate comments in `app.js`.
 - Restored all structural step-navigation comments (`// 1)`, `// 2)` etc.) in `authController.js` that were accidentally stripped.
 
 ### Fallback Clarification
 - Added comment in `aiWorkflowAgent.js` clarifying why `LAST_RESORT_FALLBACK` is intentionally NOT merged with `workflowGenerator.js` templates — they serve different layers of the fallback hierarchy.
 
 ### Verification
-- All 6 controllers, 5 models, 8 utilities, 6 routes, and `app.js` load cleanly.
-- Frontend `npm run build` passes (1848 modules, no errors).
+- 75 backend require paths — all resolve correctly.
+- 35 logic unit tests (phone normalization, dept alias expansion, phone flow) — all PASS.
+- 24 backend modules (all controllers, utilities, routes, app.js) load cleanly.
+- TypeScript `tsc --noEmit` — 0 errors.
+- Frontend `npm run build` — ✓ built in 7.80s, 0 errors.

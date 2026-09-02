@@ -13,7 +13,7 @@
 const axios = require('axios');
 
 const AGENT_URL = (process.env.AI_AGENT_URL || 'http://localhost:8000').replace(/\/$/, '');
-const TIMEOUT_MS = parseInt(process.env.AI_WORKFLOW_TIMEOUT_MS || '35000', 10);
+const TIMEOUT_MS = parseInt(process.env.AI_WORKFLOW_TIMEOUT_MS || '65000', 10);
 const INTERNAL_KEY = process.env.AI_AGENT_INTERNAL_KEY || '';
 
 // ---------------------------------------------------------------------------

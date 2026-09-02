@@ -287,7 +287,7 @@ async def run_agent(title: str, description: str, requirements: List[str]) -> di
     On timeout, returns a research fallback with usedFallback=True.
     Mirrors runAIWorkflowAgent() in aiWorkflowAgent.js.
     """
-    timeout_secs = int(os.environ.get("AI_WORKFLOW_TIMEOUT_SECS", "30"))
+    timeout_secs = int(os.environ.get("AI_WORKFLOW_TIMEOUT_SECS", "60"))
 
     initial_state: AgentState = {
         "title": title or "",
